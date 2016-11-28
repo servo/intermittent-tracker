@@ -30,7 +30,7 @@ class AutoWriteDB(IntermittentsDB):
     def __init__(self, filename):
         self.filename = filename
         with open(filename) as f:
-            IntermittentsDB.__init__(json.loads(f.read()))
+            IntermittentsDB.__init__(self, json.loads(f.read()))
 
     def __enter__(self):
         return self
