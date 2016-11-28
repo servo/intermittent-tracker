@@ -8,7 +8,7 @@ class IntermittentsDB:
     def query(self, name):
         for i in self.intermittents:
             if name in i['title']:
-                return i['number']
+                return i
         return None
 
 
