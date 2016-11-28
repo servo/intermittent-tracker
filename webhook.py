@@ -22,10 +22,10 @@ def handler(payload):
     issue = payload['issue']
     if action == 'labeled':
         handlers.on_label_added(db, payload['label']['name'],
-                                issue['title'], issue['number'], payload['state'])
+                                issue['title'], issue['number'], issue['state'])
     elif action == 'unlabled':
         handlers.on_label_removed(db, payload['label']['name'],
-                                  issue['title'], issue['number'], payload['state'])
+                                  issue['title'], issue['number'], issue['state'])
     elif action == 'closed':
         handlers.on_issue_closed(db, issue['number'])
     elif action == 'reopened':
@@ -34,7 +34,7 @@ def handler(payload):
     elif action == 'edited':
         handlers.on_issue_updated(db, issue['name'], issue['number'],
                                   map(lambda l: l['name'], issue['labels'],
-                                  payload['state']))
+                                  issue['state']))
     else:
         raise "Unexpected action encounted: %s" % action
 
