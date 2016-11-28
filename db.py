@@ -6,10 +6,7 @@ class IntermittentsDB:
 
 
     def query(self, name):
-        for i in self.intermittents:
-            if name in i['title']:
-                return i
-        return None
+        return filter(lambda i: name in i['title'], self.intermittents)
 
 
     def add(self, name, number):

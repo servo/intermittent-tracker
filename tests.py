@@ -5,7 +5,7 @@ import json
 def query(db, name):
     result = db.query(name)
     if result:
-        return result['number']
+        return result[0]['number']
     return None
 
 with open('tests.json') as f:
@@ -14,6 +14,7 @@ with open('tests.json') as f:
 assert query(db, 'many-draw-calls.html') == 14391
 assert query(db, '2d.fillStyle.parse.css-color-4-rgba-4.html') == 14389
 assert query(db, 'mozbrowserlocationchange_event.html') == None
+assert len(db.query('Intermittent')) == 2
 
 db.add('foo.html', 12345)
 assert query(db, 'foo.html') == 12345
