@@ -35,6 +35,6 @@ class AutoWriteDB(IntermittentsDB):
     def __enter__(self):
         return self
 
-    def __exit__(self):
+    def __exit__(self, etype, evalue, etrace):
         with open(self.filename, 'w') as f:
             f.write(json.dumps(self.intermittents))

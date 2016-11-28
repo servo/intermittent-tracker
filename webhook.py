@@ -22,7 +22,7 @@ def handler(payload):
         if action == 'labeled':
             handlers.on_label_added(db, payload['label']['name'],
                                     issue['title'], issue['number'], issue['state'])
-        elif action == 'unlabled':
+        elif action == 'unlabeled':
             handlers.on_label_removed(db, payload['label']['name'],
                                       issue['title'], issue['number'], issue['state'])
         elif action == 'closed':
