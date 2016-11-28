@@ -12,16 +12,7 @@ except:
 import handlers
 from db import AutoWriteDB
 
-if __name__ == "__main__":
-    print("Content-Type: text/html;charset=utf-8")
-    print()
-
-    cgitb.enable()
-
-    post = cgi.FieldStorage()
-    payload_raw = post.getfirst("payload", '')
-    payload = json.loads(payload_raw)
-
+def handler(payload):
     action = payload['action']
     if action not in ['labeled', 'unlabeled', 'edited', 'closed', 'reopened']:
         return
@@ -46,3 +37,14 @@ if __name__ == "__main__":
                                   payload['state']))
     else:
         raise "Unexpected action encounted: %s" % action
+
+if __name__ == "__main__":
+    print("Content-Type: text/html;charset=utf-8")
+    print()
+
+    cgitb.enable()
+
+    post = cgi.FieldStorage()
+    payload_raw = post.getfirst("payload", '')
+    payload = json.loads(payload_raw)
+    handler(payload)
