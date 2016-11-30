@@ -6,7 +6,8 @@ class IntermittentsDB:
 
 
     def query(self, name):
-        return filter(lambda i: name in i['title'], self.intermittents)
+        # In Python 3 filter() is lazy, so we build an array right here so that it can be jsonified
+        return [x for x in filter(lambda i: name in i['title'], self.intermittents)]
 
 
     def add(self, name, number):

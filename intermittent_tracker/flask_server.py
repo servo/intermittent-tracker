@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-import query, webhook
+from . import query, webhook
 app = Flask(__name__)
 
 @app.route("/query.py")
@@ -17,5 +17,8 @@ def webhookpy():
 def index():
     return "Hi!"
 
-if __name__ == "__main__":
+def main():
     app.run()
+
+if __name__ == "__main__":
+    main()

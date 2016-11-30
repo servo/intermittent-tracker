@@ -9,8 +9,8 @@ try:
 except:
     import json
 
-import handlers
-from db import IntermittentsDB
+from . import handlers
+from .db import IntermittentsDB
 
 def query(name):
     with open('intermittents.json') as f:

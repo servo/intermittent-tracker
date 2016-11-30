@@ -9,8 +9,8 @@ try:
 except:
     import json
 
-import handlers
-from db import AutoWriteDB
+from . import handlers
+from .db import AutoWriteDB
 
 def handler(payload_raw):
     payload = json.loads(payload_raw)
