@@ -9,8 +9,13 @@ try:
 except:
     import json
 
-import handlers
-from db import IntermittentsDB
+from . import handlers
+from .db import IntermittentsDB
+
+def query(name):
+    with open('intermittents.json') as f:
+        db = IntermittentsDB(json.loads(f.read()))
+    return db.query(name)
 
 if __name__ == "__main__":
     print("Content-Type: application/json;charset=utf-8")
@@ -21,8 +26,6 @@ if __name__ == "__main__":
     post = cgi.FieldStorage()
     name = post.getfirst("name", None)
     if name:
-        with open('intermittents.json') as f:
-            db = IntermittentsDB(json.loads(f.read()))
-        print(json.dumps(db.query(name)))
+        print(json.dumps(query(name)))
     else:
         print('null')

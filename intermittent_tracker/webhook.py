@@ -9,10 +9,11 @@ try:
 except:
     import json
 
-import handlers
-from db import AutoWriteDB
+from . import handlers
+from .db import AutoWriteDB
 
-def handler(payload):
+def handler(payload_raw):
+    payload = json.loads(payload_raw)
     action = payload['action']
     if action not in ['labeled', 'unlabeled', 'edited', 'closed', 'reopened']:
         return
@@ -28,7 +29,7 @@ def handler(payload):
         elif action == 'closed':
             handlers.on_issue_closed(db, issue['number'])
         elif action == 'reopened':
-            handlers.on_issue_closed(db, issue['name'], issue['number'],
+            handlers.on_issue_reopened(db, issue['title'], issue['number'],
                                      map(lambda l: l['name'], issue['labels']))
         elif action == 'edited':
             handlers.on_issue_updated(db, issue['name'], issue['number'],
@@ -44,6 +45,5 @@ if __name__ == "__main__":
     cgitb.enable()
 
     post = cgi.FieldStorage()
-    payload_raw = post.getfirst("payload", '')
-    payload = json.loads(payload_raw)
+    payload = post.getfirst("payload", '')
     handler(payload)
