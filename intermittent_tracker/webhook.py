@@ -32,7 +32,7 @@ def handler(payload_raw):
             handlers.on_issue_reopened(db, issue['title'], issue['number'],
                                      map(lambda l: l['name'], issue['labels']))
         elif action == 'edited':
-            handlers.on_issue_updated(db, issue['name'], issue['number'],
+            handlers.on_issue_updated(db, issue['title'], issue['number'],
                                       map(lambda l: l['name'], issue['labels'],
                                           issue['state']))
         else:
