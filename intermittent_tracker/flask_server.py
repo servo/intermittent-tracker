@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from . import query, webhook
+import json
 app = Flask(__name__)
 
 @app.route("/query.py")
@@ -18,7 +19,10 @@ def index():
     return "Hi!"
 
 def main():
-    app.run()
+    with open('config.json') as f:
+        config = json.loads(f.read())
+        assert('port' in config)
+    app.run(port=config['port'])
 
 if __name__ == "__main__":
     main()
