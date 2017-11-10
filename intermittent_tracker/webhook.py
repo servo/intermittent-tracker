@@ -33,8 +33,8 @@ def handler(payload_raw):
                                      map(lambda l: l['name'], issue['labels']))
         elif action == 'edited':
             handlers.on_issue_updated(db, issue['title'], issue['number'],
-                                      map(lambda l: l['name'], issue['labels'],
-                                          issue['state']))
+                                      map(lambda l: l['name'], issue['labels']),
+                                          issue['state'])
         else:
             raise "Unexpected action encounted: %s" % action
 
