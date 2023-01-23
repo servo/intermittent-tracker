@@ -22,4 +22,4 @@ for issue in issues:
     }
     intermittents += [reduced]
 
-print json.dumps(intermittents)
+print(json.dumps(intermittents))
