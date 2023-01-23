@@ -1,6 +1,6 @@
 /.venv/
 /*.egg-info/
+/data/
 config.json
-intermittents.json
 *.pyc
 cgi-bin
