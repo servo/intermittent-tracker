@@ -63,4 +63,4 @@ handlers.on_label_added(db, 'C-disabled', 'baz.html', 12345, 'closed')
 handlers.on_issue_reopened(db, 'baz.html', 12345, ['I-intermittent', 'C-disabled'])
 assert query(db, 'bar.html') == None
 
-print 'All tests passed.'
+print('All tests passed.')
