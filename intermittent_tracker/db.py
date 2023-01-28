@@ -1,5 +1,6 @@
 import json
 import sqlite3
+import time
 
 class IssuesDB:
     def __init__(self, db):
@@ -73,17 +74,27 @@ class DashboardDB:
                 INSERT INTO "meta" VALUES (1)
             """)
             self.con.execute("""
+                CREATE TABLE "test" (
+                "path" TEXT NOT NULL                        -- test name
+                , "subtest" TEXT
+                , "unexpected_count" INTEGER NOT NULL
+                , "last_unexpected" INTEGER                 -- unix time
+                , PRIMARY KEY ("path", "subtest")
+                )
+            """)
+            self.con.execute("""
                 CREATE TABLE "attempt" (
                 "path" TEXT NOT NULL                        -- test name
-                , "subtest" TEXT DEFAULT NULL
+                , "subtest" TEXT
                 , "expected" TEXT NOT NULL                  -- status e.g. PASS
                 , "actual" TEXT NOT NULL                    -- status e.g. FAIL
-                , "time" INTEGER DEFAULT (unixepoch())
+                , "time" INTEGER NOT NULL                   -- unix time
                 , "message" TEXT DEFAULT NULL               -- test output
                 , "stack" TEXT DEFAULT NULL
                 , "branch" TEXT DEFAULT NULL                -- e.g. auto, try
                 , "build_url" TEXT DEFAULT NULL             -- e.g. https://github.com/servo/servo/actions/runs/4030556190/jobs/6929482570
                 , "pull_url" TEXT DEFAULT NULL              -- e.g. https://github.com/servo/servo/pull/29306
+                , FOREIGN KEY ("path", "subtest") REFERENCES "test"
                 )
             """)
             self.con.execute("""
@@ -95,7 +106,42 @@ class DashboardDB:
             self.con.execute("""
                 CREATE INDEX "attempt.pull" ON "attempt" ("pull_url")
             """)
+            self.con.execute("""
+                CREATE TRIGGER "test.count_unexpected"
+                INSERT ON "attempt"
+                BEGIN
+                    INSERT INTO "test" VALUES (
+                        new."path", new."subtest"
+                        , CASE WHEN new."actual" != new."expected" THEN 1 ELSE 0 END
+                        , CASE WHEN new."actual" != new."expected" THEN new."time" ELSE NULL END
+                    ) ON CONFLICT DO UPDATE SET
+                        "unexpected_count" = "unexpected_count" + 1
+                        , "last_unexpected" = new."time"
+                        WHERE new."actual" != new."expected";
+                END
+            """)
             self.con.execute("COMMIT")
+
+    def __enter__(self):
+        self.con.__enter__()
+
+    def __exit__(self):
+        self.con.__exit__()
+
+    def insert_attempt(self, *, path, subtest=None, expected, actual, time=None,
+                       message=None, stack=None, branch=None, build_url=None, pull_url=None):
+        if time is None:
+            time = now()
+        self.con.execute('INSERT INTO "attempt" VALUES (?,?,?,?,?,?,?,?,?,?)',
+            (path, subtest, expected, actual, time, message, stack, branch, build_url, pull_url))
+
+    def insert_attempts(self, *attempts):
+        for attempt in attempts:
+            self.insert_attempt(**attempt)
+
+
+def now():
+    return int(time.time())
 
 
 # python3 -im intermittent_tracker.db
