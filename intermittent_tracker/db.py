@@ -1,4 +1,5 @@
 import json
+import sqlite3
 
 class IssuesDB:
     def __init__(self, db):
@@ -41,3 +42,62 @@ class AutoWriteDB:
 class AutoWriteIssuesDB(AutoWriteDB, IssuesDB):
     def __init__(self, filename):
         super().__init__(filename)
+
+
+class DashboardDB:
+    def __init__(self, filename):
+        self.version = 0  # schema version (0 = empty database)
+        self.con = sqlite3.connect(filename)
+        self.con.row_factory = sqlite3.Row
+
+        # generally faster, but database must be on a local filesystem
+        self.con.execute("PRAGMA journal_mode=wal")
+
+        # schema version (susceptible to toctou)
+        try:
+            meta = self.con.execute("SELECT * FROM meta").fetchone()
+            self.version = meta['version']
+        except sqlite3.OperationalError as e:
+            if not str(e).startswith('no such table: '):
+                raise
+
+        # schema migrations
+        if self.version < 1:
+            self.con.execute("BEGIN")
+            self.con.execute("""
+                CREATE TABLE "meta" (
+                "version" INTEGER NOT NULL
+                )
+            """)
+            self.con.execute("""
+                INSERT INTO "meta" VALUES (1)
+            """)
+            self.con.execute("""
+                CREATE TABLE "attempt" (
+                "path" TEXT NOT NULL                        -- test name
+                , "subtest" TEXT DEFAULT NULL
+                , "expected" TEXT NOT NULL                  -- status e.g. PASS
+                , "actual" TEXT NOT NULL                    -- status e.g. FAIL
+                , "time" INTEGER DEFAULT (unixepoch())
+                , "message" TEXT DEFAULT NULL               -- test output
+                , "stack" TEXT DEFAULT NULL
+                , "branch" TEXT DEFAULT NULL                -- e.g. auto, try
+                , "build_url" TEXT DEFAULT NULL             -- e.g. https://github.com/servo/servo/actions/runs/4030556190/jobs/6929482570
+                , "pull_url" TEXT DEFAULT NULL              -- e.g. https://github.com/servo/servo/pull/29306
+                )
+            """)
+            self.con.execute("""
+                CREATE INDEX "attempt.test" ON "attempt" ("path", "subtest")
+            """)
+            self.con.execute("""
+                CREATE INDEX "attempt.build" ON "attempt" ("build_url")
+            """)
+            self.con.execute("""
+                CREATE INDEX "attempt.pull" ON "attempt" ("pull_url")
+            """)
+            self.con.execute("COMMIT")
+
+
+# python3 -im intermittent_tracker.db
+if __name__ == '__main__':
+    d = DashboardDB("data/dashboard.sqlite")
