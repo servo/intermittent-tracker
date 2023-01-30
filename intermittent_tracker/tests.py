@@ -8,9 +8,7 @@ def query(db, name):
         return result[0]['number']
     return None
 
-with open('tests.json') as f:
-    db = IssuesDB(json.loads(f.read()))
-
+db = IssuesDB.readonly('tests.json')
 assert query(db, 'many-draw-calls.html') == 14391
 assert query(db, '2d.fillStyle.parse.css-color-4-rgba-4.html') == 14389
 assert query(db, 'mozbrowserlocationchange_event.html') == None

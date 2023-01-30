@@ -3,14 +3,21 @@ import sqlite3
 import time
 
 class IssuesDB:
+    @staticmethod
+    def readonly(filename='data/issues.json'):
+        with open(filename) as f:
+            return IssuesDB(json.loads(f.read()))
+
+    @staticmethod
+    def autowrite(filename='data/issues.json'):
+        return AutoWriteIssuesDB(filename)
+
     def __init__(self, db):
         self.data = db
-
 
     def query(self, name):
         # In Python 3 filter() is lazy, so we build an array right here so that it can be jsonified
         return [x for x in filter(lambda i: name in i['title'], self.data)]
-
 
     def add(self, name, number):
         for i in self.data:
@@ -18,7 +25,6 @@ class IssuesDB:
                 return
         self.data.extend([{'title': name, 'number': number}])
 
-    
     def remove(self, number):
         for idx, i in enumerate(self.data):
             if i['number'] == number:
@@ -46,6 +52,10 @@ class AutoWriteIssuesDB(AutoWriteDB, IssuesDB):
 
 
 class DashboardDB:
+    @staticmethod
+    def connect():
+        return DashboardDB('data/dashboard.sqlite')
+
     def __init__(self, filename):
         self.version = 0  # schema version (0 = empty database)
         self.con = sqlite3.connect(filename)

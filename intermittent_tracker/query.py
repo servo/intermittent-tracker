@@ -13,9 +13,7 @@ from . import handlers
 from .db import IssuesDB
 
 def query(name):
-    with open('data/issues.json') as f:
-        db = IssuesDB(json.loads(f.read()))
-    return db.query(name)
+    return IssuesDB.readonly().query(name)
 
 if __name__ == "__main__":
     print("Content-Type: application/json;charset=utf-8")
