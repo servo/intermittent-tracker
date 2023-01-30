@@ -142,12 +142,16 @@ class DashboardDB:
                        message=None, stack=None, branch=None, build_url=None, pull_url=None):
         if time is None:
             time = now()
+        self.con.execute('SAVEPOINT "insert_attempt"')
         self.con.execute('INSERT INTO "attempt" VALUES (?,?,?,?,?,?,?,?,?,?)',
             (path, subtest, expected, actual, time, message, stack, branch, build_url, pull_url))
+        self.con.execute('RELEASE "insert_attempt"')
 
     def insert_attempts(self, *attempts):
+        self.con.execute('SAVEPOINT "insert_attempts"')
         for attempt in attempts:
             self.insert_attempt(**attempt)
+        self.con.execute('RELEASE "insert_attempts"')
 
 
 def now():
