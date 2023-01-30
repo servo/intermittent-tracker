@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
-from . import query, webhook
+from . import query, webhook, dashboard
 import json
+
 app = Flask(__name__)
 
 @app.route("/query.py")
@@ -13,6 +14,19 @@ def querypy():
 def webhookpy():
     webhook.handler(request.form.get('payload', '{}'))
     return ('', 204)
+
+@app.route('/dashboard/tests')
+def dashboard_tests():
+    return dashboard.tests(request)
+
+@app.route('/dashboard/test')
+def dashboard_test():
+    return dashboard.test(request)
+
+# TODO authenticate requests for this endpoint
+@app.route('/dashboard/attempts', methods=['POST'])
+def dashboard_post_attempts():
+    return dashboard.post_attempts(request)
 
 @app.route('/')
 def index():
