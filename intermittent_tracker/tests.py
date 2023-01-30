@@ -1,5 +1,5 @@
-from db import IssuesDB, DashboardDB
-import handlers
+from .db import IssuesDB, DashboardDB
+from . import handlers
 import json
 
 def query(db, name):
@@ -8,7 +8,7 @@ def query(db, name):
         return result[0]['number']
     return None
 
-db = IssuesDB.readonly('tests.json')
+db = IssuesDB.readonly('intermittent_tracker/tests.json')
 assert query(db, 'many-draw-calls.html') == 14391
 assert query(db, '2d.fillStyle.parse.css-color-4-rgba-4.html') == 14389
 assert query(db, 'mozbrowserlocationchange_event.html') == None

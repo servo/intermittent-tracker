@@ -15,6 +15,5 @@ To run tests:
 
 ```sh
 $ . .venv/bin/activate
-$ cd intermittent_tracker
-$ python3 tests.py
+$ python3 -m intermittent_tracker.tests
 ```
