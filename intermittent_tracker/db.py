@@ -53,34 +53,39 @@ class AutoWriteIssuesDB(AutoWriteDB, IssuesDB):
 
 
 class DashboardDB:
-    @staticmethod
-    def connect():
-        return DashboardDB('data/dashboard.sqlite')
-
-    def __init__(self, filename):
-        self.version = 0  # schema version (0 = empty database)
-        self.con = sqlite3.connect(filename)
-        self.con.row_factory = sqlite3.Row
-
-        # generally faster, but database must be on a local filesystem
-        self.con.execute("PRAGMA journal_mode=wal")
-
-        # schema version (susceptible to toctou)
+    migrations = []
+    expected_version = 0
+    for version in count(1):
         try:
-            meta = self.con.execute("SELECT * FROM meta").fetchone()
-            self.version = meta['version']
+            with open(f'schema/dashboard.{version}.sql') as f:
+                migrations.append(f.read())
+                expected_version = version
+        except FileNotFoundError:
+            break
+
+    @staticmethod
+    def migrate(filename='data/dashboard.sqlite'):
+        con = connect(filename)
+        version = 0
+        try:
+            version = con.execute('SELECT * FROM meta').fetchone()['version']
         except sqlite3.OperationalError as e:
             if not str(e).startswith('no such table: '):
                 raise
+        for migration in DashboardDB.migrations[version:]:
+            con.executescript(f'BEGIN; {migration}; COMMIT')
 
-        # schema migrations
-        for version in count(self.version + 1):
-            try:
-                with open(f'schema/dashboard.{version}.sql') as f:
-                    self.con.executescript(f'BEGIN; {f.read()}; COMMIT')
-                    self.version = version
-            except FileNotFoundError:
-                break
+    def __init__(self, filename='data/dashboard.sqlite'):
+        self.con = connect(filename)
+        try:
+            version = self.con.execute('SELECT * FROM meta').fetchone()['version']
+            assert version == DashboardDB.expected_version
+        except sqlite3.OperationalError as e:
+            if str(e).startswith('no such table: '):
+                raise Exception('database seems to be empty; did you call migrate()?')
+            raise
+        except AssertionError:
+            raise Exception('database out of date; did you call migrate()?')
 
     def __enter__(self):
         self.con.__enter__()
@@ -108,6 +113,17 @@ def now():
     return int(time.time())
 
 
+def connect(filename):
+    con = sqlite3.connect(filename)
+    con.row_factory = sqlite3.Row
+
+    # generally faster, but database must be on a local filesystem
+    con.execute('PRAGMA journal_mode=wal')
+
+    return con
+
+
 # python3 -im intermittent_tracker.db
 if __name__ == '__main__':
-    d = DashboardDB("data/dashboard.sqlite")
+    DashboardDB.migrate()
+    d = DashboardDB()

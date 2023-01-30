@@ -6,14 +6,14 @@ def issues_mixin(path):
     return {'issues': issues.query(path)}
 
 def tests(request):
-    db = DashboardDB.connect()
+    db = DashboardDB()
     result = []
     for test in db.con.execute('SELECT * FROM "test" WHERE "last_unexpected" IS NOT NULL ORDER BY "last_unexpected" DESC').fetchall():
         result.append(dict(test) | issues_mixin(test['path']))
     return json.dumps(result)
 
 def test(request):
-    db = DashboardDB.connect()
+    db = DashboardDB()
     result = {'unexpected': []} | issues_mixin(request.args['path'])
     where = (request.args['path'], request.args['subtest'])
     for attempt in db.con.execute('SELECT * FROM "attempt" WHERE "path" = ? AND "subtest" = ? AND "actual" != "expected" ORDER BY "time" DESC', where).fetchall():
@@ -21,6 +21,6 @@ def test(request):
     return json.dumps(result)
 
 def post_attempts(request):
-    db = DashboardDB.connect()
+    db = DashboardDB()
     db.insert_attempts(*request.json)
     return ('', 204)

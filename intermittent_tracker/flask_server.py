@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from . import query, webhook, dashboard
+from .db import DashboardDB
 import json
 
 app = Flask(__name__)
@@ -36,6 +37,7 @@ def main():
     with open('config.json') as f:
         config = json.loads(f.read())
         assert('port' in config)
+    DashboardDB.migrate()
     app.run(port=config['port'])
 
 if __name__ == "__main__":
