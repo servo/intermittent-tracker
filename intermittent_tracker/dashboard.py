@@ -23,4 +23,6 @@ def test(request):
 def post_attempts(request):
     db = DashboardDB()
     db.insert_attempts(*request.json)
-    return ('', 204)
+    issues = IssuesDB.readonly()
+    result = [attempt for attempt in request.json if not issues.query(attempt['path'])]
+    return json.dumps(result)
