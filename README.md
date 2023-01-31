@@ -17,3 +17,9 @@ To run tests:
 $ . .venv/bin/activate
 $ python3 -m intermittent_tracker.tests
 ```
+
+To generate a `dashboard_secret` for config.json:
+
+```sh
+$ python3 -c 'import secrets; print(secrets.token_urlsafe())'
+```
