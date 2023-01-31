@@ -100,6 +100,14 @@ class DashboardDB:
         self.con.execute('SAVEPOINT "insert_attempt"')
         self.con.execute('INSERT INTO "attempt" VALUES (?,?,?,?,?,?,?,?,?,?)',
             (path, subtest, expected, actual, time, message, stack, branch, build_url, pull_url))
+        if actual != expected:
+            self.con.execute("""
+                INSERT INTO "test" VALUES (?,?,1,?) ON CONFLICT DO UPDATE SET
+                    "unexpected_count" = "unexpected_count" + 1
+                    , "last_unexpected" = ?
+            """, (path, subtest, time, time))
+        else:
+            self.con.execute('INSERT INTO "test" VALUES (?,?,0,NULL) ON CONFLICT DO NOTHING', (path, subtest))
         self.con.execute('RELEASE "insert_attempt"')
 
     def insert_attempts(self, *attempts):

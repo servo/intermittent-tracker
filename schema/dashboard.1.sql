@@ -30,14 +30,3 @@ CREATE TABLE "attempt" (
 CREATE INDEX "attempt.test" ON "attempt" ("path", "subtest");
 CREATE INDEX "attempt.build" ON "attempt" ("build_url");
 CREATE INDEX "attempt.pull" ON "attempt" ("pull_url");
-
-CREATE TRIGGER "test.count_unexpected" INSERT ON "attempt" BEGIN
-    INSERT INTO "test" VALUES (
-        new."path", new."subtest"
-        , CASE WHEN new."actual" != new."expected" THEN 1 ELSE 0 END
-        , CASE WHEN new."actual" != new."expected" THEN new."time" ELSE NULL END
-    ) ON CONFLICT DO UPDATE SET
-        "unexpected_count" = "unexpected_count" + 1
-        , "last_unexpected" = new."time"
-        WHERE new."actual" != new."expected";
-END;
