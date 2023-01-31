@@ -33,7 +33,7 @@ class IssuesDB:
                 return
 
 
-class AutoWriteDB:
+class AutoWriteIssuesDB(IssuesDB):
     def __init__(self, filename):
         self.filename = filename
         with open(filename) as f:
@@ -45,11 +45,6 @@ class AutoWriteDB:
     def __exit__(self, etype, evalue, etrace):
         with open(self.filename, 'w') as f:
             f.write(json.dumps(self.data))
-
-
-class AutoWriteIssuesDB(AutoWriteDB, IssuesDB):
-    def __init__(self, filename):
-        super().__init__(filename)
 
 
 class DashboardDB:
