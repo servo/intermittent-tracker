@@ -1,9 +1,20 @@
 from flask import Flask, request, jsonify
+from flask_httpauth import HTTPTokenAuth
 from . import query, webhook, dashboard
 from .db import DashboardDB
 import json
 
+with open('config.json') as f:
+    config = json.loads(f.read())
+    assert(key in config for key in ['github_token', 'dashboard_secret', 'port'])
+
 app = Flask(__name__)
+auth = HTTPTokenAuth(scheme='Bearer')
+
+@auth.verify_token
+def authenticate(token):
+    if token == config['dashboard_secret']:
+        return True
 
 @app.route("/query.py")
 def querypy():
@@ -24,8 +35,8 @@ def dashboard_tests():
 def dashboard_test():
     return dashboard.test(request)
 
-# TODO authenticate requests for this endpoint
 @app.route('/dashboard/attempts', methods=['POST'])
+@auth.login_required
 def dashboard_post_attempts():
     return dashboard.post_attempts(request)
 
@@ -34,9 +45,6 @@ def index():
     return "Hi!"
 
 def main():
-    with open('config.json') as f:
-        config = json.loads(f.read())
-        assert('port' in config)
     DashboardDB.migrate()
     app.run(port=config['port'])
 

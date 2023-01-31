@@ -11,6 +11,7 @@ setup(
     install_requires=[
         'github3.py',
         'flask',
+        'Flask-HTTPAuth',
     ],
     entry_points={
         'console_scripts': [

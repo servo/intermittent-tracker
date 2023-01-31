@@ -4,7 +4,7 @@ import json
 with open('config.json') as f:
     config = json.loads(f.read())
 
-gh = login(token=config['token'])
+gh = login(token=config['github_token'])
 
 issues = gh.issues_on(username='servo',
                       repository='servo',
