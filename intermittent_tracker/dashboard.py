@@ -5,19 +5,23 @@ def issues_mixin(path):
     issues = IssuesDB.readonly()
     return {'issues': issues.query(path)}
 
+def decode_subtest(result):
+    result['subtest'] = DashboardDB.decode_subtest(result['subtest'])
+    return result
+
 def tests(request):
     db = DashboardDB()
     result = []
-    for test in db.con.execute('SELECT * FROM "test" WHERE "last_unexpected" IS NOT NULL ORDER BY "last_unexpected" DESC').fetchall():
-        result.append(dict(test) | issues_mixin(test['path']))
+    for test in db.con.execute('SELECT *, rowid FROM "test" WHERE "last_unexpected" IS NOT NULL ORDER BY "last_unexpected" DESC').fetchall():
+        result.append(decode_subtest(dict(test)) | issues_mixin(test['path']))
     return json.dumps(result)
 
 def test(request):
     db = DashboardDB()
     result = {'unexpected': []} | issues_mixin(request.args['path'])
-    where = (request.args['path'], request.args['subtest'])
-    for attempt in db.con.execute('SELECT * FROM "attempt" WHERE "path" = ? AND "subtest" = ? AND "actual" != "expected" ORDER BY "time" DESC', where).fetchall():
-        result['unexpected'].append(dict(attempt))
+    where = (request.args['path'], DashboardDB.encode_subtest(request.args['subtest']))
+    for attempt in db.con.execute('SELECT *, rowid FROM "attempt" WHERE "path" = ? AND "subtest" = ? AND "actual" != "expected" ORDER BY "time" DESC', where).fetchall():
+        result['unexpected'].append(decode_subtest(dict(attempt)))
     return json.dumps(result)
 
 def post_attempts(request):

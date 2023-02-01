@@ -59,6 +59,14 @@ class DashboardDB:
             break
 
     @staticmethod
+    def encode_subtest(subtest):
+        return '' if subtest is None else f'={subtest}'
+
+    @staticmethod
+    def decode_subtest(subtest):
+        return subtest[1:] if len(subtest) > 0 else None
+
+    @staticmethod
     def migrate(filename='data/dashboard.sqlite'):
         con = connect(filename)
         version = 0
@@ -90,6 +98,7 @@ class DashboardDB:
 
     def insert_attempt(self, *, path, subtest=None, expected, actual, time=None,
                        message=None, stack=None, branch=None, build_url=None, pull_url=None):
+        subtest = DashboardDB.encode_subtest(subtest)
         if time is None:
             time = now()
         self.con.execute('SAVEPOINT "insert_attempt"')
