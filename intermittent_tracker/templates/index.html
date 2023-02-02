@@ -1,0 +1,238 @@
+<!doctype html><meta charset="utf-8">
+<style>
+    * {
+        box-sizing: border-box;
+    }
+    *:where(ul, h1, h2, h3, h4, h5, h6) {
+        margin: 0;
+    }
+    * + * {
+        margin-top: 1em;
+    }
+    :root {
+        font-family: Atkinson Hyperlegible, Helvetica, Arial, sans-serif;
+    }
+    body {
+        margin: 1em;
+    }
+    td, th {
+        vertical-align: top;
+    }
+    th {
+        text-align: left;
+    }
+    time[title] {
+        text-decoration: dotted underline;
+    }
+    .flex {
+        display: flex;
+        column-gap: 1em;
+    }
+    .flex > * + * {
+        margin-top: 0;
+    }
+    .flex > * {
+        flex: 1 0 20em;
+    }
+    .AttemptList details {
+        display: contents;
+    }
+    .AttemptList summary {
+        display: inline list-item;
+    }
+    .AttemptList ul {
+        padding: 0;
+    }
+    .AttemptList ul, .AttemptList li {
+        margin-top: 0;
+    }
+    .AttemptList li {
+        list-style-position: outside;
+    }
+</style>
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<main></main>
+<script type="text/babel">
+    const {StrictMode, useState, useEffect} = React;
+
+    function App() {
+        return <>
+            <div className="flex">
+                <div><h2>recent unexpected results</h2><Attempts branch="auto" /></div>
+                <div><h2>top unexpected tests</h2><TopTests /></div>
+            </div>
+        </>;
+    }
+
+    function Attempts({branch}) {
+        const [since, setSince] = useState(null);
+        const [attempts, setAttempts] = useState(null);
+        const [lastUpdate, setLastUpdate] = useState(null);
+
+        useEffect(() => {
+            (async () => {
+                const params = new URLSearchParams(branch ? {branch} : {});
+                const response = await fetch(`/dashboard/attempts?${params}`);
+                if (!response.ok)
+                    return;
+                const result = await response.json();
+                setAttempts(coalesceSubtestAttempts(result));
+                setSince(result.length > 0 ? result[0].time : 0);
+                setLastUpdate(Date.now() / 1000);
+            })();
+        }, []);
+
+        useEffect(() => {
+            if (since == null)
+                return;
+            let waiting = false;
+            const interval = setInterval(async () => {
+                if (waiting)
+                    return;
+                waiting = true;
+                const params = new URLSearchParams(branch ? {branch} : {});
+                params.set('since', since);
+                const response = await fetch(`/dashboard/attempts?${params}`);
+                if (!response.ok)
+                    return;
+                const result = await response.json();
+                setAttempts(mergeOldAttempts(coalesceSubtestAttempts(result), attempts));
+                setSince(result.length > 0 ? result[0].time : 0);
+                setLastUpdate(Date.now() / 1000);
+                waiting = false;
+            }, 1000);
+            return () => void clearInterval(interval);
+        }, [since]);
+
+        if (attempts == null)
+            return;
+
+        return <div className="Attempts">
+            <h3>
+                {branch ? `${branch} branch` : `all branches`}
+                {" "}as of{" "}
+                <Time t={lastUpdate} relative={false} />
+            </h3>
+            <AttemptList attempts={attempts} hideBranch={!!branch} />
+        </div>;
+    }
+
+    function TopTests() {
+        const [tests, setTests] = useState(null);
+
+        useEffect(() => {
+            (async () => {
+                const response = await fetch(`/dashboard/tests?group`);
+                if (!response.ok)
+                    return;
+                const result = await response.json();
+                setTests(result);
+            })();
+        }, []);
+
+        if (tests == null)
+            return;
+
+        return <table border="1" width="100%">
+            <colgroup>
+                <col />
+                <col width="0*" />
+            </colgroup>
+            <thead><tr>
+                <th>test</th>
+                <th>count</th>
+                <th>last</th>
+            </tr></thead>
+            <tbody>
+                {tests.map(x => <tr key={x.rowid}>
+                    <td>{x.path}</td>
+                    <td>{x['max("unexpected_count")']}</td>
+                    <td><Time t={x['max("last_unexpected")']} relative={true} /></td>
+                </tr>)}
+            </tbody>
+        </table>;
+    }
+
+    function AttemptList({attempts, hideBranch}) {
+        return <table className="AttemptList" border="1" width="100%">
+            <colgroup>
+                {hideBranch || <col width="0*" />}
+                <col width="0*" />
+                <col />
+                <col width="0*" />
+                <col width="0*" />
+            </colgroup>
+            <thead><tr>
+                {hideBranch || <th>branch</th>}
+                <th>time</th>
+                <th>test</th>
+                <th>build</th>
+                <th>pull</th>
+            </tr></thead>
+            <tbody>
+                {attempts.map(x => <Attempt key={x.rowid} hideBranch={hideBranch} {...x} />)}
+            </tbody>
+        </table>;
+    }
+
+    function Attempt({hideBranch, path, subtests, ...rest}) {
+        return <tr>
+            {hideBranch || <td>{rest.branch}</td>}
+            <td><Time t={rest.time} relative={true} /></td>
+            <td>
+                <span>{path}</span>
+                {" "}
+                {subtests.length > 0 && <details>
+                    <summary></summary>
+                    <ul>{subtests.map(x => <li key={x.rowid}>[{x.expected} → {x.actual}] {x.subtest}</li>)}</ul>
+                </details>}
+            </td>
+            <td>{rest.build_url && <a href={rest.build_url} target="_blank">{rest.build_url.split("/").at(-1)}</a>}</td>
+            <td>{rest.build_url && <a href={rest.pull_url} target="_blank">{rest.pull_url.split("/").at(-1)}</a>}</td>
+        </tr>;
+    }
+
+    function Time({t, relative}) {
+        const now = Date.now() / 1000;
+        const iso = new Date(t * 1000).toISOString();
+        const absoluteText = iso.slice(0,-5).replace("T"," ");
+        const relativeText =
+            now - t >= 86400 ? `${Math.trunc((now - t) / 86400)}d`
+            : now - t >= 3600 ? `${Math.trunc((now - t) / 3600)}h`
+            : now - t >= 60 ? `${Math.trunc((now - t) / 60)}m`
+            : `${Math.trunc(now - t)}s`;
+        const text = relative ? relativeText : absoluteText;
+        return <time title={iso} dateTime={iso}>{text}</time>;
+    }
+
+    function coalesceSubtestAttempts(result) {
+        let i = 0;
+        while (i < result.length) {
+            if (i > 0 && result[i].path == result[i-1].path
+                && result[i].build_url == result[i-1].build_url
+                && result[i].time == result[i-1].time) {
+                result[i-1].subtests.push(result[i]);
+                result.splice(i, 1);
+            } else {
+                if (result[i].subtest != null)
+                    result[i].subtests = [{...result[i]}];
+                else
+                    result[i].subtests = [];
+                i += 1;
+            }
+        }
+        return result;
+    }
+
+    function mergeOldAttempts(result, old) {
+        for (const attempt of old)
+            if (!result.some(x => x.rowid == attempt.rowid))
+                result.push(attempt);
+        return result;
+    }
+
+    const root = ReactDOM.createRoot(document.querySelector("main"));
+    root.render(<StrictMode><App /></StrictMode>);
+</script>
