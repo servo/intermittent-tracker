@@ -68,23 +68,26 @@
         </>;
     }
 
-    function Attempts({branch, since, setSince}) {
-        const [attempts, setAttempts] = useState(null);
+    function Attempts({branch = null, since, setSince}) {
+        const [attempts, setAttempts] = useState([]);
         const [lastUpdate, setLastUpdate] = useState(null);
 
-        useEffect(() => {
-            (async () => {
-                const params = new URLSearchParams(branch ? {branch} : {});
-                const response = await fetch(`/dashboard/attempts?${params}`);
-                if (!response.ok)
-                    return;
-                const result = await response.json();
-                setAttempts(coalesceSubtestAttempts(result));
-                setSince(result.length > 0 ? result[0].time : 0);
-                setLastUpdate(Date.now() / 1000);
-            })();
-        }, []);
+        async function fetchData() {
+            const params = new URLSearchParams();
+            if (branch != null)
+                params.set("branch", branch);
+            if (since != null)
+                params.set("since", since);
+            const response = await fetch(`/dashboard/attempts?${params}`);
+            if (!response.ok)
+                throw new Error(response);
+            const result = await response.json();
+            setLastUpdate(Date.now() / 1000);
+            setAttempts(mergeOldAttempts(coalesceSubtestAttempts(result), attempts));
+            setSince(result.length > 0 ? result[0].time : 0);
+        }
 
+        useEffect(() => void fetchData(), []);
         useEffect(() => {
             if (since == null)
                 return;
@@ -93,15 +96,7 @@
                 if (waiting)
                     return;
                 waiting = true;
-                const params = new URLSearchParams(branch ? {branch} : {});
-                params.set('since', since);
-                const response = await fetch(`/dashboard/attempts?${params}`);
-                if (!response.ok)
-                    return;
-                const result = await response.json();
-                setAttempts(mergeOldAttempts(coalesceSubtestAttempts(result), attempts));
-                setSince(result.length > 0 ? result[0].time : 0);
-                setLastUpdate(Date.now() / 1000);
+                await fetchData();
                 waiting = false;
             }, 1000);
             return () => void clearInterval(interval);
