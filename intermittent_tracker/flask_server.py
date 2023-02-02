@@ -14,7 +14,9 @@ auth = HTTPTokenAuth(scheme='Bearer')
 @auth.verify_token
 def authenticate(token):
     if token == config['dashboard_secret']:
-        return True
+        # returning just True makes HTTPTokenAuth.current_user return None,
+        # making it impossible to use @auth.login_required(optional=True).
+        return {'ok':True}
 
 @app.route("/query.py")
 def querypy():
@@ -31,14 +33,16 @@ def webhookpy():
 def dashboard_tests():
     return dashboard.tests(request)
 
-@app.route('/dashboard/test')
-def dashboard_test():
-    return dashboard.test(request)
-
-@app.route('/dashboard/attempts', methods=['POST'])
-@auth.login_required
+@app.route('/dashboard/attempts', methods=['GET', 'POST'])
+@auth.login_required(optional=True)
 def dashboard_post_attempts():
-    return dashboard.post_attempts(request)
+    if request.method == 'POST':
+        if auth.current_user() is not None:
+            return dashboard.post_attempts(request)
+        else:
+            return ('', 401)
+    else:
+        return dashboard.get_attempts(request)
 
 @app.route('/')
 def index():
