@@ -1,4 +1,4 @@
-from db import IntermittentsDB
+from db import IssuesDB
 import handlers
 import json
 
@@ -9,7 +9,7 @@ def query(db, name):
     return None
 
 with open('tests.json') as f:
-    db = IntermittentsDB(json.loads(f.read()))
+    db = IssuesDB(json.loads(f.read()))
 
 assert query(db, 'many-draw-calls.html') == 14391
 assert query(db, '2d.fillStyle.parse.css-color-4-rgba-4.html') == 14389

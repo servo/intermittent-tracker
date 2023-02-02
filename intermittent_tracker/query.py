@@ -10,11 +10,11 @@ except:
     import json
 
 from . import handlers
-from .db import IntermittentsDB
+from .db import IssuesDB
 
 def query(name):
-    with open('intermittents.json') as f:
-        db = IntermittentsDB(json.loads(f.read()))
+    with open('data/issues.json') as f:
+        db = IssuesDB(json.loads(f.read()))
     return db.query(name)
 
 if __name__ == "__main__":
