@@ -15,6 +15,11 @@ To run tests:
 
 ```sh
 $ . .venv/bin/activate
-$ cd intermittent_tracker
-$ python3 tests.py
+$ python3 -m intermittent_tracker.tests
+```
+
+To generate a `dashboard_secret` for config.json:
+
+```sh
+$ python3 -c 'import secrets; print(secrets.token_urlsafe())'
 ```

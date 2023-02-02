@@ -1,1 +1,1 @@
-{"token": "abcdefghijklmnop", "port": 5000}
+{"github_token": "abcdefghijklmnop", "dashboard_secret": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq", "port": 5000}

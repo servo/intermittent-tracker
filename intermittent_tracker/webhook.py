@@ -10,7 +10,7 @@ except:
     import json
 
 from . import handlers
-from .db import AutoWriteIssuesDB
+from .db import IssuesDB
 
 def handler(payload_raw):
     payload = json.loads(payload_raw)
@@ -18,7 +18,7 @@ def handler(payload_raw):
     if action not in ['labeled', 'unlabeled', 'edited', 'closed', 'reopened']:
         return
 
-    with AutoWriteIssuesDB('data/issues.json') as db:
+    with IssuesDB.autowrite() as db:
         issue = payload['issue']
         if action == 'labeled':
             handlers.on_label_added(db, payload['label']['name'],
