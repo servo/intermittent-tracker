@@ -32,6 +32,7 @@ CREATE TABLE "attempt" (
 );
 
 CREATE INDEX "attempt.test" ON "attempt" ("path", "subtest");
+CREATE INDEX "attempt.branch" ON "attempt" ("branch");
 CREATE INDEX "attempt.build" ON "attempt" ("build_url");
 CREATE INDEX "attempt.pull" ON "attempt" ("pull_url");
 
