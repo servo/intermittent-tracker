@@ -9,9 +9,9 @@ def tests(request):
     db = DashboardDB()
     result = []
     if 'group' in request.args:
-        query = 'SELECT *, rowid, max("unexpected_count"), max("last_unexpected") FROM "test" WHERE "last_unexpected" IS NOT NULL GROUP BY "path" ORDER BY max("last_unexpected") DESC'
+        query = 'SELECT rowid, *, max("unexpected_count"), max("last_unexpected") FROM "test" WHERE "last_unexpected" IS NOT NULL GROUP BY "path" ORDER BY max("last_unexpected") DESC'
     else:
-        query = 'SELECT *, rowid FROM "test" WHERE "last_unexpected" IS NOT NULL ORDER BY "last_unexpected" DESC'
+        query = 'SELECT rowid, * FROM "test" WHERE "last_unexpected" IS NOT NULL ORDER BY "last_unexpected" DESC'
     for test in db.con.execute(query).fetchall():
         result.append(dict(test) | issues_mixin(test['path']))
     return json.dumps(result)
@@ -41,7 +41,7 @@ def get_attempts(request):
         # were inserted later in the same second than previous requests
         where += ' AND "time" >= ?'
         params.append(int(request.args['since']))
-    for attempt in db.con.execute(f'SELECT *, rowid FROM "attempt" WHERE "actual" != "expected" {where} ORDER BY "time" DESC', params).fetchall():
+    for attempt in db.con.execute(f'SELECT rowid, * FROM "attempt" WHERE "actual" != "expected" {where} ORDER BY "time" DESC', params).fetchall():
         result.append(dict(attempt))
     return json.dumps(result)
 
