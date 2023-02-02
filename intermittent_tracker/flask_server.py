@@ -44,6 +44,10 @@ def dashboard_post_attempts():
     else:
         return dashboard.get_attempts(request)
 
+@app.route('/dashboard/query', methods=['POST'])
+def dashboard_query():
+    return dashboard.query(request)
+
 @app.route('/')
 def index():
     return "Hi!"
