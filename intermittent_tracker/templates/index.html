@@ -58,16 +58,17 @@
     const {StrictMode, useState, useEffect} = React;
 
     function App() {
+        const [since, setSince] = useState(null);
+
         return <>
             <div className="flex">
-                <div><h2>recent unexpected results</h2><Attempts branch="auto" /></div>
-                <div><h2>top unexpected tests</h2><TopTests /></div>
+                <div><h2>recent unexpected results</h2><Attempts branch="auto" since={since} setSince={setSince} /></div>
+                <div><h2>top unexpected tests</h2><TopTests since={since} /></div>
             </div>
         </>;
     }
 
-    function Attempts({branch}) {
-        const [since, setSince] = useState(null);
+    function Attempts({branch, since, setSince}) {
         const [attempts, setAttempts] = useState(null);
         const [lastUpdate, setLastUpdate] = useState(null);
 
@@ -119,9 +120,10 @@
         </div>;
     }
 
-    function TopTests() {
+    function TopTests({since}) {
         const [tests, setTests] = useState(null);
 
+        // update whenever Attempts bumps since
         useEffect(() => {
             (async () => {
                 const response = await fetch(`/dashboard/tests?group`);
@@ -130,7 +132,7 @@
                 const result = await response.json();
                 setTests(result);
             })();
-        }, []);
+        }, [since]);
 
         if (tests == null)
             return;
