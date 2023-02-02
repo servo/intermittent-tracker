@@ -115,7 +115,7 @@
         </div>;
     }
 
-    function TopTests({since}) {
+    function TopTests({since = null}) {
         const [tests, setTests] = useState(null);
 
         // update whenever Attempts bumps since
@@ -146,13 +146,13 @@
                 {tests.map(x => <tr key={x.rowid}>
                     <td>{x.path}</td>
                     <td>{x['max("unexpected_count")']}</td>
-                    <td><Time t={x['max("last_unexpected")']} relative={true} /></td>
+                    <td><Time t={x['max("last_unexpected")']} /></td>
                 </tr>)}
             </tbody>
         </table>;
     }
 
-    function AttemptList({attempts, hideBranch}) {
+    function AttemptList({attempts, hideBranch = false}) {
         return <table className="AttemptList" border="1" width="100%">
             <colgroup>
                 {hideBranch || <col width="0*" />}
@@ -174,10 +174,10 @@
         </table>;
     }
 
-    function Attempt({hideBranch, path, subtests, ...rest}) {
+    function Attempt({hideBranch = false, path, subtests, ...rest}) {
         return <tr>
             {hideBranch || <td>{rest.branch}</td>}
-            <td><Time t={rest.time} relative={true} /></td>
+            <td><Time t={rest.time} /></td>
             <td>
                 <span>{path}</span>
                 {" "}
@@ -191,7 +191,7 @@
         </tr>;
     }
 
-    function Time({t, relative}) {
+    function Time({t, relative = true}) {
         const now = Date.now() / 1000;
         const iso = new Date(t * 1000).toISOString();
         const absoluteText = iso.slice(0,-5).replace("T"," ");
