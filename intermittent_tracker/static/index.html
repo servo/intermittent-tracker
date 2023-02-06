@@ -1,33 +1,62 @@
 <!doctype html><meta charset="utf-8">
 <link rel="stylesheet" href="/static/style.css">
 <script src="https://unpkg.com/vue@3.2.47"></script>
-<main>
+<main></main>
+<script type="text/x-template" id="App">
     <h2>recent unexpected results</h2>
-    <Recent branch="auto"></Recent>
-</main>
+    <Recent></Recent>
+</script>
 <script type="text/x-template" id="Recent">
-    <h3>{{ branch }} branch as of <Time v-if="lastUpdate != null" :t="lastUpdate"></Time></h3>
+    as of <Time v-if="lastUpdate != null" :t="lastUpdate"></Time>
+    <div v-if="filterKeys.length > 0">
+        <h3>filtering by</h3>
+        <table border="1">
+            <tr v-for="key in filterKeys">
+                <td><a :href="unfilter(key)">×</a></td>
+                <td><var>{{ key }}</var></td>
+                <td><Detail :field="key" :value="filters[key]"></Detail></td>
+            </tr>
+        </table>
+    </div>
+    <div v-if="allSameKeys.length > 0">
+        <h3>all attempts have the same</h3>
+        <table border="1">
+            <tr v-for="key in allSameKeys">
+                <td><var>{{ key }}</var></td>
+                <td><Detail :field="key" :value="allSame[key]"></Detail></td>
+            </tr>
+        </table>
+    </div>
     <table class="AttemptList" border="1" width="100%">
         <colgroup>
             <col width="0*">
-            <col width="0*">
-            <col>
-            <col width="0*">
-            <col width="0*">
+            <col v-if="columnVisible('path')">
+            <col v-if="columnVisible('subtest')">
+            <col v-if="columnVisible('branch')" width="0*">
+            <col v-if="columnVisible('pull_url')" width="0*">
+            <col v-if="columnVisible('build_url')" width="0*">
+            <col v-if="columnVisible('message')">
+            <col v-if="columnVisible('stack')">
         </colgroup>
         <tr>
-            <th>branch</th>
             <th>time</th>
-            <th>test</th>
-            <th>build</th>
-            <th>pull</th>
+            <th v-if="columnVisible('path')">path</th>
+            <th v-if="columnVisible('subtest')">subtest</th>
+            <th v-if="columnVisible('branch')">branch</th>
+            <th v-if="columnVisible('pull_url')">pull</th>
+            <th v-if="columnVisible('build_url')">build</th>
+            <th v-if="columnVisible('message')">message</th>
+            <th v-if="columnVisible('stack')">stack</th>
         </tr>
         <tr v-for="attempt in attempts">
-            <td>{{ attempt.branch }}</td>
             <td><Time :t="attempt.time" :relative-to="lastUpdate"></Time></td>
-            <td>{{ attempt.path }}</td>
-            <td><a v-if="attempt.build_url" :href="attempt.build_url" target="_blank">{{ attempt.build_url.split("/").at(-1) }}</a></td>
-            <td><a v-if="attempt.pull_url" :href="attempt.pull_url" target="_blank">{{ attempt.pull_url.split("/").at(-1) }}</a></td>
+            <td v-if="columnVisible('path')"><a class="ugc" :href="filter('path', attempt)">{{ attempt.path }}</a></td>
+            <td v-if="columnVisible('subtest')"><a class="ugc" :href="filter('subtest', attempt)">{{ attempt.subtest }}</a></td>
+            <td v-if="columnVisible('branch')"><a :href="filter('branch', attempt)">{{ attempt.branch }}</a></td>
+            <td v-if="columnVisible('pull_url')"><a :href="filter('pull_url', attempt)">{{ short(attempt.pull_url) }}</a></td>
+            <td v-if="columnVisible('build_url')"><a :href="filter('build_url', attempt)">{{ short(attempt.build_url) }}</a></td>
+            <td v-if="columnVisible('message')"><pre>{{ attempt.message }}</pre></td>
+            <td v-if="columnVisible('stack')"><pre>{{ attempt.stack }}</pre></td>
         </tr>
     </table>
 </script>
@@ -35,16 +64,34 @@
     <time v-if="relativeTo != null" :datetime="iso" :title="iso">{{ relativeText }}</time>
     <time v-else :datetime="iso" :title="iso">{{ absoluteText }}</time>
 </script>
+<script type="text/x-template" id="Detail">
+    <a class="ugc" v-if="field.endsWith('_url')" :href="value" target="_blank">{{ value }}</a>
+    <pre class="ugc" v-else-if="value != null">{{ value }}</pre>
+    <em class="ugc" v-else>(null)</em>
+</script>
 <script>
+    const FILTER_KEYS = ["path", "subtest", "branch", "build_url", "pull_url"];
+    const OTHER_KEYS = ["message", "stack"];
+
     const Recent = {
         template: "#Recent",
-        props: {
-            branch: {type: String, required: true},
-        },
         data() {
+            const params = new URLSearchParams(location.search);
+            const filters = {};
+            const filterKeys = [];
+            for (const key of FILTER_KEYS) {
+                if (params.has(key)) {
+                    filters[key] = params.get(key);
+                    filterKeys.push(key);
+                }
+            }
             return {
                 since: null,
+                filters,
+                filterKeys,
                 attempts: [],
+                allSame: {},
+                allSameKeys: [],
                 lastUpdate: null,
             };
         },
@@ -54,15 +101,58 @@
         methods: {
             async update() {
                 try {
-                    const result = await fetchRecent(this.since, {branch: this.branch});
+                    const result = await fetchRecent(this.since, this.filters);
+                    this.lastUpdate = Date.now() / 1000;
                     this.since = result.length > 0 ? result[0].time : 0;
                     this.attempts = mergeOldAttempts(coalesceSubtestAttempts(result), this.attempts);
-                    this.lastUpdate = Date.now() / 1000;
+
+                    const uniques = {};
+                    const allSame = {};
+                    const allSameKeys = [];
+                    const keys = [...FILTER_KEYS, ...OTHER_KEYS].filter(k => !this.filterKeys.includes(k));
+                    for (const key of keys) {
+                        uniques[key] = new Set;
+                    }
+                    for (const attempt of this.attempts) {
+                        for (const key of keys) {
+                            uniques[key].add(attempt[key]);
+                        }
+                    }
+                    for (const key of keys) {
+                        if (uniques[key].size == 1) {
+                            allSame[key] = [...uniques[key]][0];
+                            allSameKeys.push(key);
+                        }
+                    }
+                    this.allSame = allSame;
+                    this.allSameKeys = allSameKeys;
                 } catch (e) {
                     console.error(e);
                 } finally {
                     setTimeout(this.update, 1000);
                 }
+            },
+            columnVisible(key) {
+                if (key == "subtest" && !this.filterKeys.includes("path"))
+                    return false;
+                if (FILTER_KEYS.includes(key) && this.filterKeys.includes(key))
+                    return false;
+                if (OTHER_KEYS.includes(key) && ["path", "subtest"].some(k => this.columnVisible(k)))
+                    return false;
+                return !(key in this.allSame);
+            },
+            filter(key, attempt) {
+                const params = new URLSearchParams(location.search);
+                params.set(key, attempt[key]);
+                return `?${params}`;
+            },
+            unfilter(key) {
+                const params = new URLSearchParams(location.search);
+                params.delete(key);
+                return `?${params}`;
+            },
+            short(url) {
+                return url != null ? url.split("/").at(-1) : null;
             },
         },
     };
@@ -90,12 +180,28 @@
         },
     };
 
-    async function fetchRecent(since = null, {branch = "auto"}) {
+    const Detail = {
+        template: "#Detail",
+        props: {
+            field: String,
+            value: String,
+        },
+    };
+
+    async function fetchRecent(since = null, {path, subtest, branch, build_url, pull_url}) {
         const params = new URLSearchParams();
-        if (branch != null)
-            params.set("branch", branch);
         if (since != null)
             params.set("since", since);
+        if (path != null)
+            params.set("path", path);
+        if (subtest != null)
+            params.set("subtest", subtest);
+        if (branch != null)
+            params.set("branch", branch);
+        if (build_url != null)
+            params.set("build_url", build_url);
+        if (pull_url != null)
+            params.set("pull_url", pull_url);
         const response = await fetch(`/dashboard/attempts?${params}`);
         if (!response.ok)
             throw new Error(response);
@@ -128,8 +234,11 @@
         return result;
     }
 
-    const app = Vue.createApp();
+    const app = Vue.createApp({
+        template: "#App",
+    });
     app.component("Recent", Recent);
     app.component("Time", Time);
+    app.component("Detail", Detail);
     app.mount("main");
 </script>

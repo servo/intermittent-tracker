@@ -1,17 +1,23 @@
 * {
     box-sizing: border-box;
 }
-*:where(ul, h1, h2, h3, h4, h5, h6) {
+*:where(pre, ul, h1, h2, h3, h4, h5, h6) {
     margin: 0;
 }
 * + * {
     margin-top: 1em;
+}
+*:where(h1, h2, h3, h4, h5, h6) + * {
+    margin-top: 0;
 }
 :root {
     font-family: Atkinson Hyperlegible, Helvetica, Arial, sans-serif;
 }
 body {
     margin: 1em;
+}
+pre, code {
+    font-family: monospace, monospace;
 }
 td, th {
     vertical-align: top;
@@ -22,28 +28,9 @@ th {
 time[title] {
     text-decoration: dotted underline;
 }
-.flex {
-    display: flex;
-    column-gap: 1em;
+.ugc {
+    word-break: break-word;
 }
-.flex > * + * {
-    margin-top: 0;
-}
-.flex > * {
-    flex: 1 0 20em;
-}
-.AttemptList details {
-    display: contents;
-}
-.AttemptList summary {
-    display: inline list-item;
-}
-.AttemptList ul {
-    padding: 0;
-}
-.AttemptList ul, .AttemptList li {
-    margin-top: 0;
-}
-.AttemptList li {
-    list-style-position: outside;
+pre.ugc {
+    white-space: pre-wrap;
 }
