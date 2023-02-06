@@ -77,8 +77,9 @@
     <em class="ugc" v-else>(null)</em>
 </script>
 <script>
+    const ALL_KEYS = ["path", "subtest", "expected", "actual", "message", "stack", "branch", "build_url", "pull_url"];
     const FILTER_KEYS = ["path", "subtest", "actual", "branch", "build_url", "pull_url"];
-    const OTHER_KEYS = ["expected", "message", "stack"];
+    const BULKY_KEYS = ["expected", "message", "stack"];
 
     const Recent = {
         template: "#Recent",
@@ -114,7 +115,7 @@
                     this.since = result.length > 0 ? result[0].time : 0;
 
                     // maintain a list of attempts without coalescing subtests,
-                    // for the “all results have the same” view
+                    // for the “all results have the same” table
                     this.attemptsRaw = mergeOldAttempts([...result], this.attemptsRaw);
 
                     // coalesce subtests, unless filtering by path
@@ -126,7 +127,7 @@
                     const uniques = {};
                     const allSame = {};
                     const allSameKeys = [];
-                    const keys = [...FILTER_KEYS, ...OTHER_KEYS].filter(k => !this.filterKeys.includes(k));
+                    const keys = ALL_KEYS.filter(k => !this.filterKeys.includes(k));
                     for (const key of keys) {
                         uniques[key] = new Set;
                     }
@@ -159,7 +160,7 @@
                     return false;
 
                 // hide bulky columns, unless path and subtest are hidden
-                if (OTHER_KEYS.includes(key) && ["path", "subtest"].some(k => this.columnVisible(k)))
+                if (BULKY_KEYS.includes(key) && ["path", "subtest"].some(k => this.columnVisible(k)))
                     return false;
 
                 // hide any columns that are also in “all results have the same”
