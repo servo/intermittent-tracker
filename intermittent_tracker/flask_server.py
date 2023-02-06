@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, send_from_directory
 from flask_httpauth import HTTPTokenAuth
 from . import query, webhook, dashboard
 from .db import DashboardDB
@@ -50,7 +50,7 @@ def dashboard_query():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return send_from_directory('static', 'index.html')
 
 def main():
     DashboardDB.migrate()

@@ -1,0 +1,123 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://unpkg.com/petite-vue@0.4.1" defer init></script>
+<main>
+    <h2>recent unexpected results</h2>
+    <div class="Attempts" v-scope="Recent({branch: 'auto'})" @vue:mounted="mounted">
+        <h3>{{ branch }} branch as of <span v-scope="Time(() => lastUpdate)"></span></h3>
+        <table class="AttemptList" border="1" width="100%">
+            <colgroup>
+                <col width="0*">
+                <col width="0*">
+                <col>
+                <col width="0*">
+                <col width="0*">
+            </colgroup>
+            <tr>
+                <th>branch
+                <th>time
+                <th>test
+                <th>build
+                <th>pull
+            <tr v-for="attempt in attempts">
+                <td>{{ attempt.branch }}
+                <td v-scope="Time(() => attempt.time, () => lastUpdate)">
+                <td>{{ attempt.path }}
+                <td><a v-if="attempt.build_url" :href="attempt.build_url" target="_blank">{{ attempt.build_url.split("/").at(-1) }}</a>
+                <td><a v-if="attempt.pull_url" :href="attempt.pull_url" target="_blank">{{ attempt.pull_url.split("/").at(-1) }}</a>
+        </table>
+    </div>
+</main>
+<template id="Time">
+    <time v-if="relativeTo" :datetime="iso" :title="iso">{{ relativeText() }}</time>
+    <time v-else :datetime="iso" :title="iso">{{ absoluteText() }}</time>
+</template>
+<script>
+    function Recent({ branch = "auto" }) {
+        return {
+            branch,
+            since: null,
+            attempts: [],
+            lastUpdate: null,
+
+            mounted() {
+                this.update();
+            },
+
+            async update() {
+                try {
+                    const result = await fetchRecent(this.since, {branch: this.branch});
+                    this.since = result.length > 0 ? result[0].time : 0;
+                    this.attempts = mergeOldAttempts(coalesceSubtestAttempts(result), this.attempts);
+                    this.lastUpdate = Date.now() / 1000;
+                } catch (e) {
+                    console.error(e);
+                } finally {
+                    setTimeout(this.update, 1000);
+                }
+            },
+        };
+    }
+
+    function Time(t, relativeTo = null) {
+        return {
+            $template: "#Time",
+            t,
+            relativeTo,
+
+            get iso() {
+                return new Date(this.t() * 1000).toISOString();
+            },
+
+            relativeText() {
+                const now = this.relativeTo();
+                return now - this.t() >= 86400 ? `${Math.trunc((now - this.t()) / 86400)}d`
+                    : now - this.t() >= 3600 ? `${Math.trunc((now - this.t()) / 3600)}h`
+                    : now - this.t() >= 60 ? `${Math.trunc((now - this.t()) / 60)}m`
+                    : `${Math.trunc(now - this.t())}s`;
+            },
+
+            absoluteText() {
+                return this.iso.slice(0,-5).replace("T"," ");
+            },
+        };
+    }
+
+    async function fetchRecent(since = null, {branch = "auto"}) {
+        const params = new URLSearchParams();
+        if (branch != null)
+            params.set("branch", branch);
+        if (since != null)
+            params.set("since", since);
+        const response = await fetch(`/dashboard/attempts?${params}`);
+        if (!response.ok)
+            throw new Error(response);
+        return response.json();
+    }
+
+    function coalesceSubtestAttempts(result) {
+        let i = 0;
+        while (i < result.length) {
+            if (i > 0 && result[i].path == result[i-1].path
+                && result[i].build_url == result[i-1].build_url
+                && result[i].time == result[i-1].time) {
+                result[i-1].subtests.push(result[i]);
+                result.splice(i, 1);
+            } else {
+                if (result[i].subtest != null)
+                    result[i].subtests = [{...result[i]}];
+                else
+                    result[i].subtests = [];
+                i += 1;
+            }
+        }
+        return result;
+    }
+
+    function mergeOldAttempts(result, old) {
+        for (const attempt of old)
+            if (!result.some(x => x.rowid == attempt.rowid))
+                result.push(attempt);
+        return result;
+    }
+</script>
