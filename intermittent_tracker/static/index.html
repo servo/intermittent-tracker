@@ -19,7 +19,7 @@
         </table>
     </div>
     <div v-if="allSameKeys.length > 0">
-        <h3>all attempts have the same</h3>
+        <h3>all results have the same</h3>
         <table border="1">
             <tr v-for="key in allSameKeys">
                 <td><var>{{ key }}</var></td>
@@ -27,6 +27,7 @@
             </tr>
         </table>
     </div>
+    <h3>results differ by</h3>
     <table class="AttemptList" border="1" width="100%">
         <colgroup>
             <col width="0*">
