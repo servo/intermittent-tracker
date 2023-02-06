@@ -55,8 +55,8 @@
             <td v-if="columnVisible('branch')"><a :href="filter('branch', attempt)">{{ attempt.branch }}</a></td>
             <td v-if="columnVisible('pull_url')"><a :href="filter('pull_url', attempt)">{{ short(attempt.pull_url) }}</a></td>
             <td v-if="columnVisible('build_url')"><a :href="filter('build_url', attempt)">{{ short(attempt.build_url) }}</a></td>
-            <td v-if="columnVisible('message')"><pre>{{ attempt.message }}</pre></td>
-            <td v-if="columnVisible('stack')"><pre>{{ attempt.stack }}</pre></td>
+            <td v-if="columnVisible('message')"><pre class="ugc">{{ attempt.message }}</pre></td>
+            <td v-if="columnVisible('stack')"><pre class="ugc">{{ attempt.stack }}</pre></td>
         </tr>
     </table>
 </script>
