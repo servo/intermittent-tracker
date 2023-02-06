@@ -91,6 +91,7 @@
                 filters,
                 filterKeys,
                 attempts: [],
+                attemptsRaw: [],
                 allSame: {},
                 allSameKeys: [],
                 lastUpdate: null,
@@ -105,7 +106,16 @@
                     const result = await fetchRecent(this.since, this.filters);
                     this.lastUpdate = Date.now() / 1000;
                     this.since = result.length > 0 ? result[0].time : 0;
-                    this.attempts = mergeOldAttempts(coalesceSubtestAttempts(result), this.attempts);
+
+                    // maintain a list of attempts without coalescing subtests,
+                    // for the “all results have the same” view
+                    this.attemptsRaw = mergeOldAttempts([...result], this.attemptsRaw);
+
+                    // coalesce subtests, unless filtering by path
+                    if (this.filterKeys.includes("path"))
+                        this.attempts = this.attemptsRaw;
+                    else
+                        this.attempts = mergeOldAttempts(coalesceSubtestAttempts([...result]), this.attempts);
 
                     const uniques = {};
                     const allSame = {};
@@ -114,7 +124,7 @@
                     for (const key of keys) {
                         uniques[key] = new Set;
                     }
-                    for (const attempt of this.attempts) {
+                    for (const attempt of this.attemptsRaw) {
                         for (const key of keys) {
                             uniques[key].add(attempt[key]);
                         }
@@ -134,12 +144,19 @@
                 }
             },
             columnVisible(key) {
+                // hide subtest column, unless filtering by path
                 if (key == "subtest" && !this.filterKeys.includes("path"))
                     return false;
+
+                // hide any columns that we are filtering by
                 if (FILTER_KEYS.includes(key) && this.filterKeys.includes(key))
                     return false;
+
+                // hide bulky columns, unless path and subtest are hidden
                 if (OTHER_KEYS.includes(key) && ["path", "subtest"].some(k => this.columnVisible(k)))
                     return false;
+
+                // hide any columns that are also in “all results have the same”
                 return !(key in this.allSame);
             },
             filter(key, attempt) {
