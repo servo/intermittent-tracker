@@ -144,12 +144,12 @@
                 }
             },
             columnVisible(key) {
-                // hide subtest column, unless filtering by path
-                if (key == "subtest" && !this.filterKeys.includes("path"))
-                    return false;
-
                 // hide any columns that we are filtering by
                 if (FILTER_KEYS.includes(key) && this.filterKeys.includes(key))
+                    return false;
+
+                // hide subtest column, unless path column is hidden
+                if (key == "subtest" && this.columnVisible("path"))
                     return false;
 
                 // hide bulky columns, unless path and subtest are hidden
