@@ -68,10 +68,13 @@ class DashboardDB:
             if not str(e).startswith('no such table: '):
                 raise
         for migration in DashboardDB.migrations[version:]:
-            con.executescript(f'BEGIN; {migration}; COMMIT')
+            con.executescript(f'BEGIN; {migration}; COMMIT; VACUUM')
 
     def __init__(self, filename='data/dashboard.sqlite'):
         self.con = connect(filename)
+        if filename == ':memory:':
+            for migration in DashboardDB.migrations:
+                self.con.executescript(f'BEGIN; {migration}; COMMIT; VACUUM')
         try:
             version = self.con.execute('SELECT * FROM meta').fetchone()['version']
             assert version == DashboardDB.expected_version
@@ -88,27 +91,26 @@ class DashboardDB:
     def __exit__(self):
         self.con.__exit__()
 
-    def insert_attempt(self, *, path, subtest=None, expected, actual, time=None,
-                       message=None, stack=None, branch=None, build_url=None, pull_url=None):
-        if time is None:
-            time = now()
+    def insert_attempt(self, *, submission, path, subtest=None, expected, actual, time,
+                       message=None, stack=None):
         self.con.execute('SAVEPOINT "insert_attempt"')
-        self.con.execute('INSERT INTO "attempt" VALUES (?,?,?,?,?,?,?,?,?,?)',
-            (path, subtest, expected, actual, time, message, stack, branch, build_url, pull_url))
         if actual != expected:
-            self.con.execute("""
-                INSERT INTO "test" VALUES (?,?,1,?) ON CONFLICT DO UPDATE SET
+            test = self.con.execute("""
+                INSERT INTO "test" VALUES (NULL,?,?,1,?) ON CONFLICT DO UPDATE SET
                     "unexpected_count" = "unexpected_count" + 1
                     , "last_unexpected" = ?
             """, (path, subtest, time, time))
         else:
-            self.con.execute('INSERT INTO "test" VALUES (?,?,0,NULL) ON CONFLICT DO NOTHING', (path, subtest))
+            test = self.con.execute('INSERT INTO "test" VALUES (NULL,?,?,0,NULL) ON CONFLICT DO NOTHING', (path, subtest))
+        self.con.execute('INSERT INTO "attempt" VALUES (NULL,?,?,?,?,?,?,?)',
+            (test.lastrowid, expected, actual, time, message, stack, submission))
         self.con.execute('RELEASE "insert_attempt"')
 
-    def insert_attempts(self, *attempts):
+    def insert_attempts(self, attempts, branch=None, build_url=None, pull_url=None):
         self.con.execute('SAVEPOINT "insert_attempts"')
+        submission = self.con.execute('INSERT INTO "submission" VALUES (NULL,?,?,?,?)', (now(), branch, build_url, pull_url))
         for attempt in attempts:
-            self.insert_attempt(**attempt)
+            self.insert_attempt(submission=submission.lastrowid, **attempt)
         self.con.execute('RELEASE "insert_attempts"')
 
 

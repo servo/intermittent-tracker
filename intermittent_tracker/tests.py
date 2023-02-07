@@ -2,6 +2,10 @@ from .db import IssuesDB, DashboardDB
 from . import handlers
 import json
 
+def debug(value):
+    print(repr(value))
+    return value
+
 def query(db, name):
     result = db.query(name)
     if result:
@@ -63,18 +67,19 @@ assert query(db, 'bar.html') == None
 
 
 dashboard = DashboardDB(":memory:")
-dashboard.insert_attempts(
+dashboard.insert_attempts([
     {'path':'a','subtest':'b','expected':'FAIL','actual':'PASS','time':1},
-    {'path':'a','subtest':'c','expected':'PASS','actual':'PASS','time':2})
+    {'path':'a','subtest':'c','expected':'PASS','actual':'PASS','time':2},
+])
 tests = dashboard.con.execute('SELECT * FROM "test"').fetchall()
-assert [tuple(x) for x in tests] == [('a','b',1,1), ('a','c',0,None)]
+assert debug([tuple(x) for x in tests]) == [(1,'a','=b','b',1,1), (2,'a','=c','c',0,None)]
 attempts = dashboard.con.execute('SELECT * FROM "attempt"')
-assert tuple(attempts.fetchone()) == ('a','b','FAIL','PASS',1,None,None,None,None,None)
-assert tuple(attempts.fetchone()) == ('a','c','PASS','PASS',2,None,None,None,None,None)
+assert debug(tuple(attempts.fetchone())) == (1,1,'FAIL','PASS',1,None,None,1)
+assert debug(tuple(attempts.fetchone())) == (2,2,'PASS','PASS',2,None,None,1)
 
-dashboard.insert_attempt(path='a', subtest='c', expected='PASS', actual='FAIL', time=3)
+dashboard.insert_attempts([{'path':'a','subtest':'c','expected':'PASS','actual':'FAIL','time':3}])
 tests = dashboard.con.execute('SELECT * FROM "test"').fetchall()
-assert [tuple(x) for x in tests] == [('a','b',1,1), ('a','c',1,3)]
+assert debug([tuple(x) for x in tests]) == [(1,'a','=b','b',1,1), (2,'a','=c','c',1,3)]
 
 
 print('All tests passed.')
