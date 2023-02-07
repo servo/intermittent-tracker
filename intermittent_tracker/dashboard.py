@@ -1,6 +1,8 @@
 from .db import DashboardDB, IssuesDB
 import json
 
+FILTER_KEYS = ['path', 'subtest', 'expected', 'actual', 'branch', 'build_url', 'pull_url']
+
 def issues_mixin(path):
     issues = IssuesDB.readonly()
     return {'issues': issues.query(path)}
@@ -21,21 +23,10 @@ def get_attempts(request):
     result = []
     where = ''
     params = []
-    if 'path' in request.args:
-        where += ' AND "path" = ?'
-        params.append(request.args['path'])
-    if 'subtest' in request.args:
-        where += ' AND "subtest" = ?'
-        params.append(request.args['subtest'])
-    if 'branch' in request.args:
-        where += ' AND "branch" = ?'
-        params.append(request.args['branch'])
-    if 'build_url' in request.args:
-        where += ' AND "build_url" = ?'
-        params.append(request.args['build_url'])
-    if 'pull_url' in request.args:
-        where += ' AND "pull_url" = ?'
-        params.append(request.args['pull_url'])
+    for key in FILTER_KEYS:
+        if key in request.args:
+            where += f' AND "{key}" = ?'
+            params.append(request.args[key])
     if 'since' in request.args:
         # use >= rather than > to allow repeated requests to pick up rows that
         # were inserted later in the same second than previous requests

@@ -78,7 +78,7 @@
 </script>
 <script>
     const ALL_KEYS = ["path", "subtest", "expected", "actual", "message", "stack", "branch", "build_url", "pull_url"];
-    const FILTER_KEYS = ["path", "subtest", "actual", "branch", "build_url", "pull_url"];
+    const FILTER_KEYS = ["path", "subtest", "expected", "actual", "branch", "build_url", "pull_url"];
     const BULKY_KEYS = ["expected", "message", "stack"];
 
     const Recent = {
@@ -213,20 +213,15 @@
         },
     };
 
-    async function fetchRecent(since = null, {path, subtest, branch, build_url, pull_url}) {
+    async function fetchRecent(since = null, filters) {
         const params = new URLSearchParams();
         if (since != null)
             params.set("since", since);
-        if (path != null)
-            params.set("path", path);
-        if (subtest != null)
-            params.set("subtest", subtest);
-        if (branch != null)
-            params.set("branch", branch);
-        if (build_url != null)
-            params.set("build_url", build_url);
-        if (pull_url != null)
-            params.set("pull_url", pull_url);
+        for (const key of FILTER_KEYS) {
+            if (filters[key] != null) {
+                params.set(key, filters[key]);
+            }
+        }
         const response = await fetch(`/dashboard/attempts?${params}`);
         if (!response.ok)
             throw new Error(response);
