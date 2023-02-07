@@ -7,7 +7,11 @@
     <Recent></Recent>
 </script>
 <script type="text/x-template" id="Recent">
-    as of <Time v-if="lastUpdate != null" :t="lastUpdate"></Time>
+    as of
+    <span v-if="lastUpdate != null">
+        <AbsoluteTime :t="lastUpdate" />
+        (last update <RelativeTime :t="lastNonEmptyUpdate" :relativeTo="lastUpdate" />)
+    </span>
     <div v-if="filterKeys.length > 0">
         <h3>filtering by</h3>
         <table border="1">
@@ -53,8 +57,8 @@
             <th v-if="columnVisible('pull_url')">pull</th>
             <th v-if="columnVisible('build_url')">build</th>
         </tr>
-        <tr v-for="attempt in attempts">
-            <td><Time :t="attempt.time" :relative-to="lastUpdate"></Time></td>
+        <tr v-for="attempt in attempts" :key="attempt.attempt_id">
+            <td><RelativeTime :t="attempt.time" :relative-to="lastNonEmptyUpdate" /></td>
             <td v-if="columnVisible('path')"><a class="ugc" :href="filter('path', attempt)">{{ attempt.path }}</a></td>
             <td v-if="columnVisible('subtest')"><a class="ugc" :href="filter('subtest', attempt)">{{ attempt.subtest }}</a></td>
             <td v-if="columnVisible('expected')"><a :href="filter('expected', attempt)">{{ attempt.expected }}</a></td>
@@ -67,9 +71,11 @@
         </tr>
     </table>
 </script>
-<script type="text/x-template" id="Time">
-    <time v-if="relativeTo != null" :datetime="iso" :title="iso">{{ relativeText }}</time>
-    <time v-else :datetime="iso" :title="iso">{{ absoluteText }}</time>
+<script type="text/x-template" id="RelativeTime">
+    <time :datetime="iso" :title="iso">{{ text }}</time>
+</script>
+<script type="text/x-template" id="AbsoluteTime">
+    <time :datetime="iso" :title="iso">{{ text }}</time>
 </script>
 <script type="text/x-template" id="Detail">
     <a class="ugc" v-if="field.endsWith('_url')" :href="value" target="_blank">{{ value }}</a>
@@ -101,15 +107,20 @@
 
                 // last response time, for “as of”
                 lastUpdate: null,
+                lastNonEmptyUpdate: null,
 
                 // actual data to be shown
-                attempts: [],
-                attemptsRaw: [],
+                // attempts is non-reactive, see #mounted()
+                // attemptsRaw is non-reactive, see #mounted()
                 allSame: {},
                 allSameKeys: [],
             };
         },
         mounted() {
+            // exclude these large arrays from reactive data, despite console
+            // warning, for performance [with 6690 rows, 150 ms → 125 ms]
+            this.attempts = [];
+            this.attemptsRaw = [];
             this.update();
         },
         methods: {
@@ -126,6 +137,10 @@
                     // update logic below.
                     if (result.length == 0)
                         return;
+
+                    // only bump relativeTo for <RelativeTime> if there were new
+                    // rows, for performance [with 6690 rows, 300 ms → 150 ms]
+                    this.lastNonEmptyUpdate = this.lastUpdate;
 
                     // for next request, update since to highest attempt_id.
                     this.since = result.at(-1).attempt_id;
@@ -198,24 +213,36 @@
         },
     };
 
-    const Time = {
-        template: "#Time",
+    const RelativeTime = {
+        template: "#RelativeTime",
         props: {
             t: {type: Number, required: true},
-            relativeTo: Number,
+            relativeTo: {type: Number, required: true},
         },
         computed: {
             iso() {
                 return new Date(this.t * 1000).toISOString();
             },
-            relativeText() {
+            text() {
                 const now = this.relativeTo;
                 return now - this.t >= 86400 ? `${Math.trunc((now - this.t) / 86400)}d`
                     : now - this.t >= 3600 ? `${Math.trunc((now - this.t) / 3600)}h`
                     : now - this.t >= 60 ? `${Math.trunc((now - this.t) / 60)}m`
                     : `${Math.trunc(now - this.t)}s`;
             },
-            absoluteText() {
+        },
+    };
+
+    const AbsoluteTime = {
+        template: "#AbsoluteTime",
+        props: {
+            t: {type: Number, required: true},
+        },
+        computed: {
+            iso() {
+                return new Date(this.t * 1000).toISOString();
+            },
+            text() {
                 return this.iso.slice(0,-5).replace("T"," ");
             },
         },
@@ -273,7 +300,8 @@
         template: "#App",
     });
     app.component("Recent", Recent);
-    app.component("Time", Time);
+    app.component("RelativeTime", RelativeTime);
+    app.component("AbsoluteTime", AbsoluteTime);
     app.component("Detail", Detail);
     app.mount("main");
 </script>
