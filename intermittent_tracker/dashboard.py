@@ -1,5 +1,6 @@
 from .db import DashboardDB, IssuesDB
 import json
+import time
 
 FILTER_KEYS = ['path', 'subtest', 'expected', 'actual', 'branch', 'build_url', 'pull_url']
 
@@ -32,8 +33,10 @@ def get_attempts(request):
         # were inserted later in the same second than previous requests
         where += ' AND "time" >= ?'
         params.append(int(request.args['since']))
+    start = time.monotonic_ns()
     for attempt in db.con.execute(f'SELECT rowid, * FROM "attempt" WHERE "actual" != "expected" {where} ORDER BY "time" DESC', params).fetchall():
         result.append(dict(attempt))
+    print(f'debug: GET /dashboard/attempts query took {time.monotonic_ns() - start} ns')
     return json.dumps(result)
 
 def post_attempts(request):
