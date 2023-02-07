@@ -94,14 +94,22 @@
                 }
             }
             return {
+                // inputs for next request
                 since: null,
                 filters,
                 filterKeys,
+
+                // last response time, for “as of”
+                lastUpdate: null,
+
+                // last response body, to optimise Recent#update()
+                lastResult: [],
+
+                // actual data to be shown
                 attempts: [],
                 attemptsRaw: [],
                 allSame: {},
                 allSameKeys: [],
-                lastUpdate: null,
             };
         },
         mounted() {
@@ -110,19 +118,39 @@
         methods: {
             async update() {
                 try {
+                    // fetch attempts where time >= since (and our filters).
+                    // we use >= rather than > because a request made early in
+                    // an epoch second might not contain results submitted later
+                    // in that second, so we need to make sure we pick them up
+                    // in the next request. this complicates our logic a little.
                     const result = await fetchRecent(this.since, this.filters);
+
+                    // bump “as of” as soon as possible.
                     this.lastUpdate = Date.now() / 1000;
-                    this.since = result.length > 0 ? result[0].time : 0;
+
+                    // if we get exactly the same rows as last time, then we can
+                    // assume nothing has changed (modulo time travel) and avoid
+                    // the expensive update logic below.
+                    if (result.length == this.lastResult.length)
+                        if (result.every((x,i) => x.rowid == this.lastResult[i].rowid))
+                            return;
+                    this.lastResult = result;
 
                     // maintain a list of attempts without coalescing subtests,
-                    // for the “all results have the same” table
+                    // for the “all results have the same” table, while removing
+                    // duplicates due to >= since.
                     this.attemptsRaw = mergeOldAttempts([...result], this.attemptsRaw);
 
-                    // coalesce subtests, unless filtering by path
+                    // coalesce subtests, unless filtering by path, again while
+                    // removing duplicates due to >= since.
                     if (this.filterKeys.includes("path"))
                         this.attempts = this.attemptsRaw;
                     else
                         this.attempts = mergeOldAttempts(coalesceSubtestAttempts([...result]), this.attempts);
+
+                    // for next request, we only care about results submitted
+                    // >= the time of the most recent result we know about.
+                    this.since = this.attempts.length > 0 ? this.attempts[0].time : 0;
 
                     const uniques = {};
                     const allSame = {};
