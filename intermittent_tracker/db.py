@@ -95,22 +95,26 @@ class DashboardDB:
                        message=None, stack=None):
         self.con.execute('SAVEPOINT "insert_attempt"')
         if actual != expected:
-            test = self.con.execute("""
+            self.con.execute("""
                 INSERT INTO "test" VALUES (NULL,?,?,1,?) ON CONFLICT DO UPDATE SET
                     "unexpected_count" = "unexpected_count" + 1
                     , "last_unexpected" = ?
             """, (path, subtest, time, time))
         else:
-            test = self.con.execute('INSERT INTO "test" VALUES (NULL,?,?,0,NULL) ON CONFLICT DO NOTHING', (path, subtest))
+            self.con.execute('INSERT INTO "test" VALUES (NULL,?,?,0,NULL) ON CONFLICT DO NOTHING', (path, subtest))
+        # SELECT query needed for test_id because Cursor.lastrowid is stale
+        # (0 or lastrowid from a previous Cursor) when ON CONFLICT is taken
+        test = self.con.execute('SELECT * FROM "test" WHERE "path" = ? AND "subtest" IS ?', (path, subtest)).fetchone()
         self.con.execute('INSERT INTO "attempt" VALUES (NULL,?,?,?,?,?,?,?)',
-            (test.lastrowid, expected, actual, time, message, stack, submission))
+            (test['test_id'], expected, actual, time, message, stack, submission))
         self.con.execute('RELEASE "insert_attempt"')
 
-    def insert_attempts(self, attempts, branch=None, build_url=None, pull_url=None):
+    def insert_attempts(self, attempts, *, branch=None, build_url=None, pull_url=None):
         self.con.execute('SAVEPOINT "insert_attempts"')
-        submission = self.con.execute('INSERT INTO "submission" VALUES (NULL,?,?,?,?)', (now(), branch, build_url, pull_url))
+        # grab lastrowid before the loop, because it will get clobbered
+        submission = self.con.execute('INSERT INTO "submission" VALUES (NULL,?,?,?,?)', (now(), branch, build_url, pull_url)).lastrowid
         for attempt in attempts:
-            self.insert_attempt(submission=submission.lastrowid, **attempt)
+            self.insert_attempt(submission=submission, **attempt)
         self.con.execute('RELEASE "insert_attempts"')
 
 

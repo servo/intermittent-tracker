@@ -39,13 +39,18 @@ def get_attempts(request):
 
 def post_attempts(request):
     db = DashboardDB()
-    db.insert_attempts(*request.json)
+    attempts = request.json['attempts']
+    branch = request.json['branch']
+    build_url = request.json['build_url']
+    pull_url = request.json['pull_url']
+    db.insert_attempts(attempts, branch=branch, build_url=build_url, pull_url=pull_url)
     return query(request)
 
 def query(request):
     issues_db = IssuesDB.readonly()
     result = {'known': [], 'unknown': []}
-    for attempt in request.json:
+    attempts = request.json['attempts']
+    for attempt in attempts:
         test = {'path': attempt['path'], 'subtest': attempt.get('subtest')}
         issues = issues_db.query(attempt['path'])
         if issues:
