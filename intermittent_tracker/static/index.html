@@ -7,6 +7,7 @@
     <Recent></Recent>
 </script>
 <script type="text/x-template" id="Recent">
+    <strong v-if="more">paused (<a href="#">unpause</a>)</strong>
     as of
     <span v-if="lastUpdate != null">
         <AbsoluteTime :t="lastUpdate" />
@@ -57,7 +58,7 @@
             <th v-if="columnVisible('pull_url')">pull</th>
             <th v-if="columnVisible('build_url')">build</th>
         </tr>
-        <tr v-for="attempt in attempts" :key="attempt.attempt_id">
+        <tr v-for="attempt in attemptsLimited()" :key="attempt.attempt_id">
             <td><RelativeTime :t="attempt.time" :relative-to="lastNonEmptyUpdate" /></td>
             <td v-if="columnVisible('path')"><a class="ugc" :href="filter('path', attempt)">{{ attempt.path }}</a></td>
             <td v-if="columnVisible('subtest')"><a class="ugc" :href="filter('subtest', attempt)">{{ attempt.subtest }}</a></td>
@@ -68,6 +69,9 @@
             <td v-if="columnVisible('branch')"><a :href="filter('branch', attempt)">{{ attempt.branch }}</a></td>
             <td v-if="columnVisible('pull_url')"><a :href="filter('pull_url', attempt)">{{ short(attempt.pull_url) }}</a></td>
             <td v-if="columnVisible('build_url')"><a :href="filter('build_url', attempt)">{{ short(attempt.build_url) }}</a></td>
+        </tr>
+        <tr v-if="moreLinkVisible()">
+            <th colspan="10">...and <a href="#more">{{ attempts.length - liveRowLimit }} more</a> (pauses live updates)</th>
         </tr>
     </table>
 </script>
@@ -114,6 +118,11 @@
                 // attemptsRaw is non-reactive, see #mounted()
                 allSame: {},
                 allSameKeys: [],
+
+                // limit to 1000 rows while live updates are enabled,
+                // for performance [with 6690 rows, 125 ms → 20 ms]
+                more: location.hash == "#more",
+                liveRowLimit: 1000,
             };
         },
         mounted() {
@@ -122,9 +131,16 @@
             this.attempts = [];
             this.attemptsRaw = [];
             this.update();
+            addEventListener("hashchange", () => {
+                this.more = location.hash == "#more";
+            });
         },
         methods: {
             async update() {
+                if (this.more && this.lastUpdate != null) {
+                    setTimeout(this.update, 1000);
+                    return;
+                }
                 try {
                     // fetch where attempt_id > since (and the given filters).
                     const result = await fetchRecent(this.since, this.filters);
@@ -180,6 +196,16 @@
                 } finally {
                     setTimeout(this.update, 1000);
                 }
+            },
+            attemptsLimited() {
+                if (this.moreLinkVisible())
+                    return this.attempts.slice(0, this.liveRowLimit);
+                return this.attempts;
+            },
+            moreLinkVisible() {
+                return this.attempts != null
+                    && this.attempts.length > this.liveRowLimit
+                    && !this.more;
             },
             columnVisible(key) {
                 // hide any columns that we are filtering by
