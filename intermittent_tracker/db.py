@@ -110,12 +110,14 @@ class DashboardDB:
         self.con.execute('RELEASE "insert_attempt"')
 
     def insert_attempts(self, attempts, *, branch=None, build_url=None, pull_url=None):
+        start = time.monotonic_ns()
         self.con.execute('SAVEPOINT "insert_attempts"')
         # grab lastrowid before the loop, because it will get clobbered
         submission = self.con.execute('INSERT INTO "submission" VALUES (NULL,?,?,?,?)', (now(), branch, build_url, pull_url)).lastrowid
         for attempt in attempts:
             self.insert_attempt(submission=submission, **attempt)
         self.con.execute('RELEASE "insert_attempts"')
+        print(f'debug: POST /dashboard/attempts query took {time.monotonic_ns() - start} ns')
 
 
 def now():
