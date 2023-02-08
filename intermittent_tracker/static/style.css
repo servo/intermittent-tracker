@@ -19,6 +19,9 @@ body {
 pre, code {
     font-family: monospace, monospace;
 }
+table.big tr:nth-child(2n) {
+    background: #e0e0e0;
+}
 td, th {
     vertical-align: top;
 }
