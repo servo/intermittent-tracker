@@ -1,10 +1,11 @@
 -- this migration adds a column representing the submission time, synthesised
 -- for existing data as max(attempt.time).
 
--- to save space in the attempt table (7.4 MB to 4.5 MB for 6 full wpt runs),
--- replace (path,subtest) with an integer foreign key into the test table, and
+-- to save space in the attempt table (7.4 MB to 1.2 MB for 6 full wpt runs),
+-- replace (path,subtest) with an integer foreign key into the test table,
 -- move (branch,build_url,pull_url), which are likely to be the same within a
--- POST /dashboard/attempts request, to a new submission table.
+-- POST /dashboard/attempts request, to a new submission table, and move
+-- (message,stack), which are large but repetitive, to a new output table.
 
 -- we also remove unnecessary indices over (path,subtest), make indices over
 -- (time) columns descending, and use partial indices for columns that might be
@@ -32,6 +33,22 @@ CREATE INDEX "submission.pull_url" ON "submission" ("pull_url") WHERE "pull_url"
 INSERT INTO "submission" ("time", "branch", "build_url", "pull_url")
 SELECT DISTINCT max("time") AS "time", "branch", "build_url", "pull_url"
 FROM "attempt" GROUP BY "branch", "build_url", "pull_url";
+
+
+CREATE TABLE "output" (
+    "output_id" INTEGER PRIMARY KEY             -- rowid alias (for foreign key)
+    , "message" TEXT DEFAULT NULL               -- test output
+    , "stack" TEXT DEFAULT NULL
+    , "message_hash" INTEGER DEFAULT NULL       -- crc32(message) or 0 if message is NULL, or NULL if unknown
+    , "stack_hash" INTEGER DEFAULT NULL         -- crc32(stack) or 0 if stack is NULL, or NULL if unknown
+    -- , UNIQUE ("message", "stack")            -- constraint index wastes disk space
+);
+
+CREATE INDEX "output.hash" ON "output" ("message_hash", "stack_hash");
+
+INSERT INTO "output" ("message", "stack")
+SELECT DISTINCT "message", "stack"
+FROM "attempt" GROUP BY "message", "stack";
 
 
 -- https://sqlite.org/lang_altertable.html#making_other_kinds_of_table_schema_changes
@@ -64,18 +81,20 @@ CREATE TABLE "_new_attempt" (
     , "expected" TEXT NOT NULL                  -- status e.g. PASS
     , "actual" TEXT NOT NULL                    -- status e.g. FAIL
     , "time" INTEGER NOT NULL                   -- when test was run (unix time in seconds)
-    , "message" TEXT DEFAULT NULL               -- test output
-    , "stack" TEXT DEFAULT NULL
+    , "output" INTEGER NOT NULL                 -- output id
     , "submission" INTEGER NOT NULL             -- submission id
     , FOREIGN KEY ("test") REFERENCES "test"
+    , FOREIGN KEY ("output") REFERENCES "output"
     , FOREIGN KEY ("submission") REFERENCES "submission"
 );
 
-INSERT INTO "_new_attempt" ("test", "expected", "actual", "time", "message", "stack", "submission")
-SELECT "test_id" AS "test", "expected", "actual", "attempt"."time", "message", "stack", "submission_id" AS "submission"
-FROM "attempt", "test", "submission"
+INSERT INTO "_new_attempt" ("test", "expected", "actual", "time", "output", "submission")
+SELECT "test_id" AS "test", "expected", "actual", "attempt"."time", "output_id" AS "output", "submission_id" AS "submission"
+FROM "attempt", "test", "output", "submission"
 WHERE "attempt"."path" IS "test"."path"
 AND "attempt"."subtest" IS "test"."subtest"
+AND "attempt"."message" IS "output"."message"
+AND "attempt"."stack" IS "output"."stack"
 AND "attempt"."branch" IS "submission"."branch"
 AND "attempt"."build_url" IS "submission"."build_url"
 AND "attempt"."pull_url" IS "submission"."pull_url";

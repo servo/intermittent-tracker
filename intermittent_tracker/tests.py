@@ -73,9 +73,11 @@ dashboard.insert_attempts([
 ])
 tests = dashboard.con.execute('SELECT * FROM "test"').fetchall()
 assert debug([tuple(x) for x in tests]) == [(1,'a','=b','b',1,1), (2,'a','=c','c',0,None)]
+outputs = dashboard.con.execute('SELECT * FROM "output"').fetchall()
+assert debug([tuple(x) for x in outputs]) == [(1,None,None,0,0)]
 attempts = dashboard.con.execute('SELECT * FROM "attempt"')
-assert debug(tuple(attempts.fetchone())) == (1,1,'FAIL','PASS',1,None,None,1)
-assert debug(tuple(attempts.fetchone())) == (2,2,'PASS','PASS',2,None,None,1)
+assert debug(tuple(attempts.fetchone())) == (1,1,'FAIL','PASS',1,1,1)
+assert debug(tuple(attempts.fetchone())) == (2,2,'PASS','PASS',2,1,1)
 
 dashboard.insert_attempts([{'path':'a','subtest':'c','expected':'PASS','actual':'FAIL','time':3}])
 tests = dashboard.con.execute('SELECT * FROM "test"').fetchall()

@@ -1,6 +1,7 @@
 import json
 import sqlite3
 import time
+from zlib import crc32
 from itertools import count
 
 class IssuesDB:
@@ -102,11 +103,30 @@ class DashboardDB:
             """, (path, subtest, time, time))
         else:
             self.con.execute('INSERT INTO "test" VALUES (NULL,?,?,0,NULL) ON CONFLICT DO NOTHING', (path, subtest))
+
         # SELECT query needed for test_id because Cursor.lastrowid is stale
         # (0 or lastrowid from a previous Cursor) when ON CONFLICT is taken
         test = self.con.execute('SELECT * FROM "test" WHERE "path" = ? AND "subtest" IS ?', (path, subtest)).fetchone()
-        self.con.execute('INSERT INTO "attempt" VALUES (NULL,?,?,?,?,?,?,?)',
-            (test['test_id'], expected, actual, time, message, stack, submission))
+        test_id = test['test_id']
+
+        message_hash = crc32(message.encode('utf-8')) if message is not None else 0
+        stack_hash = crc32(stack.encode('utf-8')) if stack is not None else 0
+        output = self.con.execute('SELECT * FROM "output" WHERE "message_hash" = ? AND "stack_hash" = ? AND "message" IS ? AND "stack" IS ?', (message_hash, stack_hash, message, stack)).fetchone()
+        if output is not None:
+            output_id = output['output_id']
+        else:
+            # if we can’t find a row by hashes, maybe there’s an unhashed row from before schema v2?
+            output = self.con.execute('SELECT * FROM "output" WHERE "message_hash" IS NULL AND "stack_hash" IS NULL AND "message" IS ? AND "stack" IS ?', (message, stack)).fetchone()
+            if output is not None:
+                # update the unhashed row accordingly
+                self.con.execute('UPDATE "output" SET "message_hash" = ?, "stack_hash" = ? WHERE "output_id" = ?', (message_hash, stack_hash, output['output_id']))
+                output_id = output['output_id']
+            else:
+                # if we still can’t find a row, we need to insert one
+                output_id = self.con.execute('INSERT INTO "output" VALUES (NULL,?,?,?,?)', (message, stack, message_hash, stack_hash)).lastrowid
+
+        self.con.execute('INSERT INTO "attempt" VALUES (NULL,?,?,?,?,?,?)',
+            (test_id, expected, actual, time, output_id, submission))
         self.con.execute('RELEASE "insert_attempt"')
 
     def insert_attempts(self, attempts, *, branch=None, build_url=None, pull_url=None):
