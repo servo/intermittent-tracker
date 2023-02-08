@@ -8,7 +8,7 @@ $ python3 -m venv .venv
 $ . .venv/bin/activate
 $ pip install -e .
 $ cp config.json.example config.json
-$ python3 -m intermittent_tracker.flask_server
+$ FLASK_DEBUG=1 python3 -m intermittent_tracker.flask_server
 ```
 
 To run tests:

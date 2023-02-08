@@ -1,5 +1,8 @@
 from .db import DashboardDB, IssuesDB
 import json
+import time
+
+FILTER_KEYS = ['path', 'subtest', 'expected', 'actual', 'branch', 'build_url', 'pull_url']
 
 def issues_mixin(path):
     issues = IssuesDB.readonly()
@@ -9,9 +12,9 @@ def tests(request):
     db = DashboardDB()
     result = []
     if 'group' in request.args:
-        query = 'SELECT rowid, *, max("unexpected_count"), max("last_unexpected") FROM "test" WHERE "last_unexpected" IS NOT NULL GROUP BY "path" ORDER BY max("last_unexpected") DESC'
+        query = 'SELECT *, max("unexpected_count"), max("last_unexpected") FROM "test" WHERE "last_unexpected" IS NOT NULL GROUP BY "path" ORDER BY max("last_unexpected") DESC'
     else:
-        query = 'SELECT rowid, * FROM "test" WHERE "last_unexpected" IS NOT NULL ORDER BY "last_unexpected" DESC'
+        query = 'SELECT * FROM "test" WHERE "last_unexpected" IS NOT NULL ORDER BY "last_unexpected" DESC'
     for test in db.con.execute(query).fetchall():
         result.append(dict(test) | issues_mixin(test['path']))
     return json.dumps(result)
@@ -21,39 +24,33 @@ def get_attempts(request):
     result = []
     where = ''
     params = []
-    if 'path' in request.args:
-        where += ' AND "path" = ?'
-        params.append(request.args['path'])
-    if 'subtest' in request.args:
-        where += ' AND "subtest" = ?'
-        params.append(request.args['subtest'])
-    if 'branch' in request.args:
-        where += ' AND "branch" = ?'
-        params.append(request.args['branch'])
-    if 'build_url' in request.args:
-        where += ' AND "build_url" = ?'
-        params.append(request.args['build_url'])
-    if 'pull_url' in request.args:
-        where += ' AND "pull_url" = ?'
-        params.append(request.args['pull_url'])
+    for key in FILTER_KEYS:
+        if key in request.args:
+            where += f' AND "{key}" = ?'
+            params.append(request.args[key])
     if 'since' in request.args:
-        # use >= rather than > to allow repeated requests to pick up rows that
-        # were inserted later in the same second than previous requests
-        where += ' AND "time" >= ?'
+        where += ' AND "attempt_id" > ?'
         params.append(int(request.args['since']))
-    for attempt in db.con.execute(f'SELECT rowid, * FROM "attempt" WHERE "actual" != "expected" {where} ORDER BY "time" DESC', params).fetchall():
+    start = time.monotonic_ns()
+    for attempt in db.con.execute(f'SELECT "path", "subtest", "attempt".*, "branch", "build_url", "pull_url" FROM "attempt", "test", "submission" WHERE "test" = "test_id" AND "submission" = "submission_id" AND "actual" != "expected" {where} ORDER BY "attempt_id"', params).fetchall():
         result.append(dict(attempt))
+    print(f'debug: GET /dashboard/attempts query took {time.monotonic_ns() - start} ns')
     return json.dumps(result)
 
 def post_attempts(request):
     db = DashboardDB()
-    db.insert_attempts(*request.json)
+    attempts = request.json['attempts']
+    branch = request.json['branch']
+    build_url = request.json['build_url']
+    pull_url = request.json['pull_url']
+    db.insert_attempts(attempts, branch=branch, build_url=build_url, pull_url=pull_url)
     return query(request)
 
 def query(request):
     issues_db = IssuesDB.readonly()
     result = {'known': [], 'unknown': []}
-    for attempt in request.json:
+    attempts = request.json['attempts']
+    for attempt in attempts:
         test = {'path': attempt['path'], 'subtest': attempt.get('subtest')}
         issues = issues_db.query(attempt['path'])
         if issues:

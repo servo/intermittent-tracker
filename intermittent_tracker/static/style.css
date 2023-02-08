@@ -1,0 +1,39 @@
+* {
+    box-sizing: border-box;
+}
+*:where(pre, ul, h1, h2, h3, h4, h5, h6) {
+    margin: 0;
+}
+* + * {
+    margin-top: 1em;
+}
+*:where(h1, h2, h3, h4, h5, h6) + * {
+    margin-top: 0;
+}
+:root {
+    font-family: Atkinson Hyperlegible, Helvetica, Arial, sans-serif;
+}
+body {
+    margin: 1em;
+}
+pre, code {
+    font-family: monospace, monospace;
+}
+table.big tr:nth-child(2n) {
+    background: #e0e0e0;
+}
+td, th {
+    vertical-align: top;
+}
+th {
+    text-align: left;
+}
+time[title] {
+    text-decoration: dotted underline;
+}
+.ugc {
+    word-break: break-word;
+}
+pre.ugc {
+    white-space: pre-wrap;
+}

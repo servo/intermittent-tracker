@@ -1,0 +1,333 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://unpkg.com/vue@3.2.47"></script>
+<main></main>
+<script type="text/x-template" id="App">
+    <h2>recent unexpected results</h2>
+    <Recent></Recent>
+</script>
+<script type="text/x-template" id="Recent">
+    <strong v-if="more">paused (<a href="#">unpause</a>)</strong>
+    as of
+    <span v-if="lastUpdate != null">
+        <AbsoluteTime :t="lastUpdate" />
+        (last update <RelativeTime :t="lastNonEmptyUpdate" :relativeTo="lastUpdate" />)
+    </span>
+    <div v-if="filterKeys.length > 0">
+        <h3>filtering by</h3>
+        <table border="1">
+            <tr v-for="key in filterKeys">
+                <td><a :href="unfilter(key)">×</a></td>
+                <td><var>{{ key }}</var></td>
+                <td><Detail :field="key" :value="filters[key]"></Detail></td>
+            </tr>
+        </table>
+    </div>
+    <div v-if="allSameKeys.length > 0">
+        <h3>all results have the same</h3>
+        <table border="1">
+            <tr v-for="key in allSameKeys">
+                <td><var>{{ key }}</var></td>
+                <td><Detail :field="key" :value="allSame[key]"></Detail></td>
+            </tr>
+        </table>
+    </div>
+    <h3>results differ by</h3>
+    <table class="big" border="1" width="100%">
+        <colgroup>
+            <col width="0*">
+            <col v-if="columnVisible('path')">
+            <col v-if="columnVisible('subtest')">
+            <col v-if="columnVisible('expected')" width="0*">
+            <col v-if="columnVisible('actual')" width="0*">
+            <col v-if="columnVisible('message')" width="0*">
+            <col v-if="columnVisible('stack')">
+            <col v-if="columnVisible('branch')" width="0*">
+            <col v-if="columnVisible('pull_url')" width="0*">
+            <col v-if="columnVisible('build_url')" width="0*">
+        </colgroup>
+        <tr>
+            <th>time</th>
+            <th v-if="columnVisible('path')">path</th>
+            <th v-if="columnVisible('subtest')">subtest</th>
+            <th v-if="columnVisible('expected')">expected</th>
+            <th v-if="columnVisible('actual')">actual</th>
+            <th v-if="columnVisible('message')">message</th>
+            <th v-if="columnVisible('stack')">stack</th>
+            <th v-if="columnVisible('branch')">branch</th>
+            <th v-if="columnVisible('pull_url')">pull</th>
+            <th v-if="columnVisible('build_url')">build</th>
+        </tr>
+        <tr v-for="attempt in attemptsLimited()" :key="attempt.attempt_id">
+            <td><RelativeTime :t="attempt.time" :relative-to="lastNonEmptyUpdate" /></td>
+            <td v-if="columnVisible('path')"><a class="ugc" :href="filter('path', attempt)">{{ attempt.path }}</a></td>
+            <td v-if="columnVisible('subtest')"><a class="ugc" :href="filter('subtest', attempt)">{{ attempt.subtest }}</a></td>
+            <td v-if="columnVisible('expected')"><a :href="filter('expected', attempt)">{{ attempt.expected }}</a></td>
+            <td v-if="columnVisible('actual')"><a :href="filter('actual', attempt)">{{ attempt.actual }}</a></td>
+            <td v-if="columnVisible('message')"><pre class="ugc">{{ attempt.message }}</pre></td>
+            <td v-if="columnVisible('stack')"><pre class="ugc">{{ attempt.stack }}</pre></td>
+            <td v-if="columnVisible('branch')"><a :href="filter('branch', attempt)">{{ attempt.branch }}</a></td>
+            <td v-if="columnVisible('pull_url')"><a :href="filter('pull_url', attempt)">{{ short(attempt.pull_url) }}</a></td>
+            <td v-if="columnVisible('build_url')"><a :href="filter('build_url', attempt)">{{ short(attempt.build_url) }}</a></td>
+        </tr>
+        <tr v-if="moreLinkVisible()">
+            <th colspan="10">...and <a href="#more">{{ attempts.length - liveRowLimit }} more</a> (pauses live updates)</th>
+        </tr>
+    </table>
+</script>
+<script type="text/x-template" id="RelativeTime">
+    <time :datetime="iso" :title="iso">{{ text }}&#xA0;ago</time>
+</script>
+<script type="text/x-template" id="AbsoluteTime">
+    <time :datetime="iso" :title="iso">{{ text }}</time>
+</script>
+<script type="text/x-template" id="Detail">
+    <a class="ugc" v-if="field.endsWith('_url')" :href="value" target="_blank">{{ value }}</a>
+    <pre class="ugc" v-else-if="value != null">{{ value }}</pre>
+    <em class="ugc" v-else>(null)</em>
+</script>
+<script>
+    const ALL_KEYS = ["path", "subtest", "expected", "actual", "message", "stack", "branch", "build_url", "pull_url"];
+    const FILTER_KEYS = ["path", "subtest", "expected", "actual", "branch", "build_url", "pull_url"];
+    const BULKY_KEYS = ["message", "stack"];
+
+    const Recent = {
+        template: "#Recent",
+        data() {
+            const params = new URLSearchParams(location.search);
+            const filters = {};
+            const filterKeys = [];
+            for (const key of FILTER_KEYS) {
+                if (params.has(key)) {
+                    filters[key] = params.get(key);
+                    filterKeys.push(key);
+                }
+            }
+            return {
+                // inputs for next request
+                since: null,
+                filters,
+                filterKeys,
+
+                // last response time, for “as of”
+                lastUpdate: null,
+                lastNonEmptyUpdate: null,
+
+                // actual data to be shown
+                // attempts is non-reactive, see #mounted()
+                // attemptsRaw is non-reactive, see #mounted()
+                allSame: {},
+                allSameKeys: [],
+
+                // limit to 1000 rows while live updates are enabled,
+                // for performance [with 6690 rows, 125 ms → 20 ms]
+                more: location.hash == "#more",
+                liveRowLimit: 1000,
+            };
+        },
+        mounted() {
+            // exclude these large arrays from reactive data, despite console
+            // warning, for performance [with 6690 rows, 150 ms → 125 ms]
+            this.attempts = [];
+            this.attemptsRaw = [];
+            this.update();
+            addEventListener("hashchange", () => {
+                this.more = location.hash == "#more";
+            });
+        },
+        methods: {
+            async update() {
+                if (this.more && this.lastUpdate != null) {
+                    setTimeout(this.update, 1000);
+                    return;
+                }
+                try {
+                    // fetch where attempt_id > since (and the given filters).
+                    const result = await fetchRecent(this.since, this.filters);
+
+                    // bump “as of” as soon as possible.
+                    this.lastUpdate = Date.now() / 1000;
+
+                    // if we get no new rows, then we can assume nothing has
+                    // changed (modulo time travel) and avoid the expensive
+                    // update logic below.
+                    if (result.length == 0)
+                        return;
+
+                    // only bump relativeTo for <RelativeTime> if there were new
+                    // rows, for performance [with 6690 rows, 300 ms → 150 ms]
+                    this.lastNonEmptyUpdate = this.lastUpdate;
+
+                    // for next request, update since to highest attempt_id.
+                    this.since = result.at(-1).attempt_id;
+
+                    // maintain a list of attempts without coalescing subtests,
+                    // for the “all results have the same” table.
+                    this.attemptsRaw = mergeAndSort(this.attemptsRaw, result);
+
+                    // coalesce subtests, unless filtering by path.
+                    if (this.filterKeys.includes("path"))
+                        this.attempts = this.attemptsRaw;
+                    else
+                        this.attempts = mergeAndSort(this.attempts, coalesceSubtestAttempts(result));
+
+                    const uniques = {};
+                    const allSame = {};
+                    const allSameKeys = [];
+                    const keys = ALL_KEYS.filter(k => !this.filterKeys.includes(k));
+                    for (const key of keys) {
+                        uniques[key] = new Set;
+                    }
+                    for (const attempt of this.attemptsRaw) {
+                        for (const key of keys) {
+                            uniques[key].add(attempt[key]);
+                        }
+                    }
+                    for (const key of keys) {
+                        if (uniques[key].size == 1) {
+                            allSame[key] = [...uniques[key]][0];
+                            allSameKeys.push(key);
+                        }
+                    }
+                    this.allSame = allSame;
+                    this.allSameKeys = allSameKeys;
+                } catch (e) {
+                    console.error(e);
+                } finally {
+                    setTimeout(this.update, 1000);
+                }
+            },
+            attemptsLimited() {
+                if (this.moreLinkVisible())
+                    return this.attempts.slice(0, this.liveRowLimit);
+                return this.attempts;
+            },
+            moreLinkVisible() {
+                return this.attempts != null
+                    && this.attempts.length > this.liveRowLimit
+                    && !this.more;
+            },
+            columnVisible(key) {
+                // hide any columns that we are filtering by
+                if (FILTER_KEYS.includes(key) && this.filterKeys.includes(key))
+                    return false;
+
+                // hide subtest column, unless path column is hidden
+                if (key == "subtest" && this.columnVisible("path"))
+                    return false;
+
+                // hide bulky columns, unless path and subtest are hidden
+                if (BULKY_KEYS.includes(key) && ["path", "subtest"].some(k => this.columnVisible(k)))
+                    return false;
+
+                // hide any columns that are also in “all results have the same”
+                return !(key in this.allSame);
+            },
+            filter(key, attempt) {
+                const params = new URLSearchParams(location.search);
+                params.set(key, attempt[key]);
+                return `?${params}`;
+            },
+            unfilter(key) {
+                const params = new URLSearchParams(location.search);
+                params.delete(key);
+                return `?${params}`;
+            },
+            short(url) {
+                return url != null ? url.split("/").at(-1) : null;
+            },
+        },
+    };
+
+    const RelativeTime = {
+        template: "#RelativeTime",
+        props: {
+            t: {type: Number, required: true},
+            relativeTo: {type: Number, required: true},
+        },
+        computed: {
+            iso() {
+                return new Date(this.t * 1000).toISOString();
+            },
+            text() {
+                const now = this.relativeTo;
+                return now - this.t >= 86400 ? `${Math.trunc((now - this.t) / 86400)}d`
+                    : now - this.t >= 3600 ? `${Math.trunc((now - this.t) / 3600)}h`
+                    : now - this.t >= 60 ? `${Math.trunc((now - this.t) / 60)}m`
+                    : `${Math.trunc(now - this.t)}s`;
+            },
+        },
+    };
+
+    const AbsoluteTime = {
+        template: "#AbsoluteTime",
+        props: {
+            t: {type: Number, required: true},
+        },
+        computed: {
+            iso() {
+                return new Date(this.t * 1000).toISOString();
+            },
+            text() {
+                return this.iso.slice(0,-5).replace("T"," ");
+            },
+        },
+    };
+
+    const Detail = {
+        template: "#Detail",
+        props: {
+            field: String,
+            value: String,
+        },
+    };
+
+    async function fetchRecent(since = null, filters) {
+        const params = new URLSearchParams();
+        if (since != null)
+            params.set("since", since);
+        for (const key of FILTER_KEYS) {
+            if (filters[key] != null) {
+                params.set(key, filters[key]);
+            }
+        }
+        const response = await fetch(`/dashboard/attempts?${params}`);
+        if (!response.ok)
+            throw new Error(response);
+        return response.json();
+    }
+
+    function coalesceSubtestAttempts(result) {
+        let i = 0;
+        while (i < result.length) {
+            if (i > 0 && result[i].path == result[i-1].path
+                && result[i].build_url == result[i-1].build_url
+                && result[i].time == result[i-1].time) {
+                result[i-1].subtests.push(result[i]);
+                result.splice(i, 1);
+            } else {
+                if (result[i].subtest != null)
+                    result[i].subtests = [{...result[i]}];
+                else
+                    result[i].subtests = [];
+                i += 1;
+            }
+        }
+        return result;
+    }
+
+    function mergeAndSort(oldAttempts, newAttempts) {
+        const result = oldAttempts.concat(newAttempts);
+        result.sort((p,q) => q.time - p.time);
+        return result;
+    }
+
+    const app = Vue.createApp({
+        template: "#App",
+    });
+    app.component("Recent", Recent);
+    app.component("RelativeTime", RelativeTime);
+    app.component("AbsoluteTime", AbsoluteTime);
+    app.component("Detail", Detail);
+    app.mount("main");
+</script>
