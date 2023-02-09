@@ -169,7 +169,7 @@
                     if (this.filterKeys.includes("path"))
                         this.attempts = this.attemptsRaw;
                     else
-                        this.attempts = mergeAndSort(this.attempts, coalesceSubtestAttempts(result));
+                        this.attempts = coalesceSubtestAttempts([...this.attemptsRaw]);
 
                     const uniques = {};
                     const allSame = {};
