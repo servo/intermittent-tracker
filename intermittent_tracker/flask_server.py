@@ -1,10 +1,10 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_httpauth import HTTPTokenAuth
-from . import query, webhook, dashboard
+from . import fs, query, webhook, dashboard
 from .db import DashboardDB
 import json
 
-with open('config.json') as f:
+with open(fs.CONFIG_PATH) as f:
     config = json.loads(f.read())
     assert(key in config for key in ['github_token', 'dashboard_secret', 'port'])
 
@@ -53,6 +53,7 @@ def index():
     return send_from_directory('static', 'index.html')
 
 def main():
+    fs.mkdir_data()
     DashboardDB.migrate()
     app.run(port=config['port'])
 

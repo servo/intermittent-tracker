@@ -1,3 +1,4 @@
+from . import fs
 import json
 import sqlite3
 import time
@@ -6,12 +7,12 @@ from itertools import count
 
 class IssuesDB:
     @staticmethod
-    def readonly(filename='data/issues.json'):
+    def readonly(filename=fs.ISSUES_JSON_PATH):
         with open(filename) as f:
             return IssuesDB(json.loads(f.read()))
 
     @staticmethod
-    def autowrite(filename='data/issues.json'):
+    def autowrite(filename=fs.ISSUES_JSON_PATH):
         return AutoWriteIssuesDB(filename)
 
     def __init__(self, db):
@@ -53,14 +54,14 @@ class DashboardDB:
     expected_version = 0
     for version in count(1):
         try:
-            with open(f'schema/dashboard.{version}.sql') as f:
+            with open(f'{fs.SCHEMA_PATH}/dashboard.{version}.sql') as f:
                 migrations.append(f.read())
                 expected_version = version
         except FileNotFoundError:
             break
 
     @staticmethod
-    def migrate(filename='data/dashboard.sqlite'):
+    def migrate(filename=fs.DASHBOARD_SQLITE_PATH):
         con = connect(filename)
         version = 0
         try:
@@ -71,7 +72,7 @@ class DashboardDB:
         for migration in DashboardDB.migrations[version:]:
             con.executescript(f'BEGIN; {migration}; COMMIT; VACUUM')
 
-    def __init__(self, filename='data/dashboard.sqlite'):
+    def __init__(self, filename=fs.DASHBOARD_SQLITE_PATH):
         self.con = connect(filename)
         if filename == ':memory:':
             for migration in DashboardDB.migrations:
@@ -156,5 +157,6 @@ def connect(filename):
 
 # python3 -im intermittent_tracker.db
 if __name__ == '__main__':
+    fs.mkdir_data()
     DashboardDB.migrate()
     d = DashboardDB()

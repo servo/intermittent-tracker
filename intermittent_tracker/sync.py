@@ -1,7 +1,8 @@
+from . import fs
 from github3 import login
 import json
 
-with open('config.json') as f:
+with open(fs.CONFIG_PATH) as f:
     config = json.loads(f.read())
 
 gh = login(token=config['github_token'])

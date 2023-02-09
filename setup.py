@@ -19,4 +19,11 @@ setup(
         ],
     },
     zip_safe=False,
+    package_data={
+        'intermittent_tracker': [
+            'schema/*',
+            'static/*',
+            'tests.json',
+        ],
+    },
 )
