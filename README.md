@@ -6,7 +6,7 @@ To develop locally:
 ```sh
 $ python3 -m venv .venv
 $ . .venv/bin/activate
-$ pip install -e .
+$ pip install -e . -r requirements.txt
 $ cp config.json.example config.json
 $ FLASK_DEBUG=1 python3 -m intermittent_tracker.flask_server
 ```
@@ -22,4 +22,10 @@ To generate a `dashboard_secret` for config.json:
 
 ```sh
 $ python3 -c 'import secrets; print(secrets.token_urlsafe())'
+```
+
+To update the pinned dependencies in the lockfile:
+
+```sh
+$ pip freeze --exclude-editable > requirements.txt
 ```
