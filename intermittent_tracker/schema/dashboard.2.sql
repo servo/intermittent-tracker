@@ -32,7 +32,7 @@ CREATE INDEX "submission.pull_url" ON "submission" ("pull_url") WHERE "pull_url"
 
 INSERT INTO "submission" ("time", "branch", "build_url", "pull_url")
 SELECT DISTINCT max("time") AS "time", "branch", "build_url", "pull_url"
-FROM "attempt" GROUP BY "branch", "build_url", "pull_url";
+FROM "attempt" GROUP BY "branch", "build_url", "pull_url" ORDER BY "attempt".rowid;
 
 
 CREATE TABLE "output" (
@@ -48,7 +48,7 @@ CREATE INDEX "output.hash" ON "output" ("message_hash", "stack_hash");
 
 INSERT INTO "output" ("message", "stack")
 SELECT DISTINCT "message", "stack"
-FROM "attempt" GROUP BY "message", "stack";
+FROM "attempt" GROUP BY "message", "stack" ORDER BY "attempt".rowid;
 
 
 -- https://sqlite.org/lang_altertable.html#making_other_kinds_of_table_schema_changes
@@ -65,7 +65,7 @@ CREATE TABLE "_new_test" (
 
 INSERT INTO "_new_test" ("path", "subtest", "unexpected_count", "last_unexpected")
 SELECT "path", "subtest", "unexpected_count", "last_unexpected"
-FROM "test";
+FROM "test" ORDER BY "test".rowid;
 
 DROP TABLE "test";
 ALTER TABLE "_new_test" RENAME TO "test";
@@ -97,7 +97,8 @@ AND "attempt"."message" IS "output"."message"
 AND "attempt"."stack" IS "output"."stack"
 AND "attempt"."branch" IS "submission"."branch"
 AND "attempt"."build_url" IS "submission"."build_url"
-AND "attempt"."pull_url" IS "submission"."pull_url";
+AND "attempt"."pull_url" IS "submission"."pull_url"
+ORDER BY "attempt".rowid;
 
 DROP TABLE "attempt";
 ALTER TABLE "_new_attempt" RENAME TO "attempt";
