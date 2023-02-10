@@ -5,6 +5,10 @@ import time
 from zlib import crc32
 from itertools import count
 
+
+FILTER_KEYS = ['path', 'subtest', 'expected', 'actual', 'branch', 'build_url', 'pull_url']
+
+
 class IssuesDB:
     @staticmethod
     def readonly(filename=fs.ISSUES_JSON_PATH):
@@ -93,6 +97,23 @@ class DashboardDB:
     def __exit__(self):
         self.con.__exit__()
 
+    def select_attempts(self, *, since=None, **filters):
+        result = []
+        where = ''
+        params = []
+        if since is not None:
+            where += ' AND "attempt_id" > ?'
+            params.append(since)
+        for key in FILTER_KEYS:
+            if key in filters:
+                where += f' AND "{key}" = ?'
+                params.append(filters[key])
+        start = time.monotonic_ns()
+        for attempt in self.con.execute(f'SELECT "path", "subtest", "attempt".*, "message", "stack", "branch", "build_url", "pull_url" FROM "attempt", "test", "output", "submission" WHERE "test" = "test_id" AND "output" = "output_id" AND "submission" = "submission_id" AND "actual" != "expected" {where} ORDER BY "attempt_id"', params).fetchall():
+            result.append(dict(attempt))
+        print(f'debug: DashboardDB.select_attempts took {time.monotonic_ns() - start} ns')
+        return result
+
     def insert_attempt(self, *, submission, path, subtest=None, expected, actual, time,
                        message=None, stack=None):
         self.con.execute('SAVEPOINT "insert_attempt"')
@@ -100,7 +121,7 @@ class DashboardDB:
             self.con.execute("""
                 INSERT INTO "test" VALUES (NULL,?,?,1,?) ON CONFLICT DO UPDATE SET
                     "unexpected_count" = "unexpected_count" + 1
-                    , "last_unexpected" = ?
+                    , "last_unexpected" = max("last_unexpected",?)
             """, (path, subtest, time, time))
         else:
             self.con.execute('INSERT INTO "test" VALUES (NULL,?,?,0,NULL) ON CONFLICT DO NOTHING', (path, subtest))
@@ -130,15 +151,16 @@ class DashboardDB:
             (test_id, expected, actual, time, output_id, submission))
         self.con.execute('RELEASE "insert_attempt"')
 
-    def insert_attempts(self, attempts, *, branch=None, build_url=None, pull_url=None):
+    def insert_attempts(self, attempts, *, branch=None, build_url=None, pull_url=None, time_for_testing=None):
+        submission_time = time_for_testing if time_for_testing is not None else now()
         start = time.monotonic_ns()
         self.con.execute('SAVEPOINT "insert_attempts"')
         # grab lastrowid before the loop, because it will get clobbered
-        submission = self.con.execute('INSERT INTO "submission" VALUES (NULL,?,?,?,?)', (now(), branch, build_url, pull_url)).lastrowid
+        submission = self.con.execute('INSERT INTO "submission" VALUES (NULL,?,?,?,?)', (submission_time, branch, build_url, pull_url)).lastrowid
         for attempt in attempts:
             self.insert_attempt(submission=submission, **attempt)
         self.con.execute('RELEASE "insert_attempts"')
-        print(f'debug: POST /dashboard/attempts query took {time.monotonic_ns() - start} ns')
+        print(f'debug: DashboardDB.insert_attempts took {time.monotonic_ns() - start} ns')
 
 
 def now():
