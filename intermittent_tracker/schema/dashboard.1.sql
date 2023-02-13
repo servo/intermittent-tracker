@@ -6,41 +6,52 @@ CREATE TABLE "meta" (
 INSERT INTO "meta" VALUES (1);
 
 CREATE TABLE "test" (
-    "path" TEXT NOT NULL                        -- test name
-    , "_subtest" TEXT NOT NULL AS (IIF(         -- for constraints [1]
-        "subtest" IS NULL, '', '=' || "subtest"))
-    , "subtest" TEXT                            -- actual subtest name
+    "test_id" INTEGER PRIMARY KEY
+    , "path" TEXT NOT NULL                      -- test name
+    , "subtest" TEXT DEFAULT NULL               -- subtest name
     , "unexpected_count" INTEGER NOT NULL
-    , "last_unexpected" INTEGER                 -- unix time
-    , UNIQUE ("path", "_subtest")
+    , "last_unexpected" INTEGER                 -- unix time in seconds
 );
 
-CREATE TABLE "attempt" (
-    "path" TEXT NOT NULL                        -- test name
-    , "_subtest" TEXT NOT NULL AS (IIF(         -- for constraints [1]
-        "subtest" IS NULL, '', '=' || "subtest"))
-    , "subtest" TEXT                            -- actual subtest name
-    , "expected" TEXT NOT NULL                  -- status e.g. PASS
-    , "actual" TEXT NOT NULL                    -- status e.g. FAIL
-    , "time" INTEGER NOT NULL                   -- unix time
+CREATE INDEX "test.path" ON "test" ("path");
+CREATE INDEX "test.subtest" ON "test" ("subtest");
+
+CREATE TABLE "output" (
+    "output_id" INTEGER PRIMARY KEY
     , "message" TEXT DEFAULT NULL               -- test output
     , "stack" TEXT DEFAULT NULL
+    , "message_hash" INTEGER NOT NULL           -- crc32(message) or 0 if message is NULL
+    , "stack_hash" INTEGER NOT NULL             -- crc32(stack) or 0 if stack is NULL
+);
+
+CREATE INDEX "output.hash" ON "output" ("message_hash", "stack_hash");
+
+CREATE TABLE "submission" (
+    "submission_id" INTEGER PRIMARY KEY
+    , "time" INTEGER NOT NULL                   -- when results were submitted (unix time in seconds)
     , "branch" TEXT DEFAULT NULL                -- e.g. auto, try
     , "build_url" TEXT DEFAULT NULL             -- e.g. https://github.com/servo/servo/actions/runs/4030556190/jobs/6929482570
     , "pull_url" TEXT DEFAULT NULL              -- e.g. https://github.com/servo/servo/pull/29306
-    , FOREIGN KEY ("path", "_subtest") REFERENCES "test"
 );
 
-CREATE INDEX "attempt.test" ON "attempt" ("path", "subtest");
-CREATE INDEX "attempt.branch" ON "attempt" ("branch");
-CREATE INDEX "attempt.build" ON "attempt" ("build_url");
-CREATE INDEX "attempt.pull" ON "attempt" ("pull_url");
+CREATE INDEX "submission.time" ON "submission" ("time" DESC);
+CREATE INDEX "submission.branch" ON "submission" ("branch");
+CREATE INDEX "submission.build_url" ON "submission" ("build_url");
+CREATE INDEX "submission.pull_url" ON "submission" ("pull_url");
 
--- [1] tests are identified by (path,subtest), or (path,NULL) if the test is not
--- a subtest, but sqlite makes the (legal) decision to let (path,NULL) bypass
--- PRIMARY KEY constraints, UNIQUE constraints, and FOREIGN KEY constraints.
--- we can work around this by mapping NULL to '' and 'foo' to '='||'foo' in a
--- generated column, giving us the behaviour we want when used in constraints.
--- https://sqlite.org/lang_createtable.html#the_primary_key
--- https://sqlite.org/lang_createtable.html#unique_constraints
--- https://sqlite.org/foreignkeys.html#fk_basics
+CREATE TABLE "attempt" (
+    "attempt_id" INTEGER PRIMARY KEY
+    , "test" INTEGER NOT NULL                   -- test id
+    , "expected" TEXT NOT NULL                  -- status e.g. PASS
+    , "actual" TEXT NOT NULL                    -- status e.g. FAIL
+    , "time" INTEGER NOT NULL                   -- when test was run (unix time in seconds)
+    , "output" INTEGER NOT NULL                 -- output id
+    , "submission" INTEGER NOT NULL             -- submission id
+    , FOREIGN KEY ("test") REFERENCES "test"
+    , FOREIGN KEY ("output") REFERENCES "output"
+    , FOREIGN KEY ("submission") REFERENCES "submission"
+);
+
+CREATE INDEX "attempt.expected" ON "attempt" ("expected");
+CREATE INDEX "attempt.actual" ON "attempt" ("actual");
+CREATE INDEX "attempt.time" ON "attempt" ("time" DESC);
