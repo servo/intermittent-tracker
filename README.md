@@ -6,16 +6,15 @@ To develop locally:
 ```sh
 $ python3 -m venv .venv
 $ . .venv/bin/activate
-$ pip install -e . -r requirements.txt
-$ cp config.json.example config.json
-$ FLASK_DEBUG=1 python3 -m intermittent_tracker.flask_server
+(.venv) $ pip install -e . -r requirements.txt
+(.venv) $ cp config.json.example config.json
+(.venv) $ FLASK_DEBUG=1 python3 -m intermittent_tracker.flask_server
 ```
 
 To run tests:
 
 ```sh
-$ . .venv/bin/activate
-$ python3 -m intermittent_tracker.tests
+(.venv) $ python3 -m intermittent_tracker.tests
 ```
 
 To generate a `dashboard_secret` for config.json:
@@ -27,7 +26,7 @@ $ python3 -c 'import secrets; print(secrets.token_urlsafe())'
 To update the pinned dependencies in the lockfile:
 
 ```sh
-$ pip freeze --exclude-editable > requirements.txt
+(.venv) $ pip freeze --exclude-editable > requirements.txt
 ```
 
 ## Compatibility
@@ -35,6 +34,32 @@ $ pip freeze --exclude-editable > requirements.txt
 * Python 3.7+
 * SQLite 3.22.0+
     * Ubuntu 18.04 LTS has libsqlite3-0 = 3.22.0
+
+## Troubleshooting
+
+### ModuleNotFoundError: No module named 'setuptools_rust'
+
+This means your pip is too old. Upgrade your system pip…
+
+```sh
+(.venv) $ deactivate
+$ rm -R .venv
+$ pip3 install -U pip
+```
+
+…or try virtualenv instead of venv.
+
+```sh
+(.venv) $ pip --version
+pip 9.0.1 from /path/to/intermittent-tracker/.venv/lib/python3.7/site-packages (python 3.7)
+
+(.venv) $ deactivate
+$ rm -R .venv
+$ virtualenv -p python3.7 .venv
+$ . .venv/bin/activate
+(.venv) $ pip --version
+pip 23.0 from /path/to/intermittent-tracker/.venv/lib/python3.7/site-packages/pip (python 3.7)
+```
 
 ## SQLite guidelines
 
