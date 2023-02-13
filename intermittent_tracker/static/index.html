@@ -1,5 +1,5 @@
 <!doctype html><meta charset="utf-8">
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="static/style.css">
 <script src="https://unpkg.com/vue@3.2.47"></script>
 <main></main>
 <script type="text/x-template" id="App">
@@ -291,7 +291,7 @@
                 params.set(key, filters[key]);
             }
         }
-        const response = await fetch(`/dashboard/attempts?${params}`);
+        const response = await fetch(`dashboard/attempts?${params}`);
         if (!response.ok)
             throw new Error(response);
         return response.json();
