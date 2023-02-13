@@ -65,7 +65,7 @@ pip 23.0 from /path/to/intermittent-tracker/.venv/lib/python3.7/site-packages/pi
 
 * don’t use [UPSERT](https://sqlite.org/lang_upsert.html) aka INSERT ON CONFLICT (unavailable < SQLite 3.24.0)
 * don’t use [generated columns](https://sqlite.org/gencol.html) (unavailable < SQLite 3.31.0)
-* don’t use [JSON functions](https://sqlite.org/json1.html) (optional < SQLite 3.38.0+)
+* don’t use [JSON functions](https://sqlite.org/json1.html) (optional < SQLite 3.38.0)
 * give each table foo a `"foo_id" INTEGER PRIMARY KEY` with exactly that syntax ([rowid alias](https://sqlite.org/lang_createtable.html#rowids_and_the_integer_primary_key))
     * having a rowid alias means you can use Cursor.lastrowid, and ensures rowid is stable under VACUUM
     * `"foo"."foo_id"` is a bit redundant, but `"id"` can get accidentally shadowed in row dicts
