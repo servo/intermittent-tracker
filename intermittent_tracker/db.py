@@ -117,19 +117,15 @@ class DashboardDB:
     def insert_attempt(self, *, submission, path, subtest=None, expected, actual, time,
                        message=None, stack=None):
         self.con.execute('SAVEPOINT "insert_attempt"')
-        if actual != expected:
-            self.con.execute("""
-                INSERT INTO "test" VALUES (NULL,?,?,1,?) ON CONFLICT DO UPDATE SET
-                    "unexpected_count" = "unexpected_count" + 1
-                    , "last_unexpected" = max("last_unexpected",?)
-            """, (path, subtest, time, time))
-        else:
-            self.con.execute('INSERT INTO "test" VALUES (NULL,?,?,0,NULL) ON CONFLICT DO NOTHING', (path, subtest))
-
-        # SELECT query needed for test_id because Cursor.lastrowid is stale
-        # (0 or lastrowid from a previous Cursor) when ON CONFLICT is taken
         test = self.con.execute('SELECT * FROM "test" WHERE "path" = ? AND "subtest" IS ?', (path, subtest)).fetchone()
-        test_id = test['test_id']
+        if test is not None:
+            if actual != expected:
+                self.con.execute('UPDATE "test" SET "unexpected_count" = "unexpected_count" + 1, "last_unexpected" = max("last_unexpected",?) WHERE "test_id" = ?', (time, test['test_id']))
+            test_id = test['test_id']
+        else:
+            unexpected_count = 1 if actual != expected else 0
+            last_unexpected = time if actual != expected else None
+            test_id = self.con.execute('INSERT INTO "test" VALUES (NULL,?,?,?,?)', (path, subtest, unexpected_count, last_unexpected)).lastrowid
 
         message_hash = crc32(message.encode('utf-8')) if message is not None else 0
         stack_hash = crc32(stack.encode('utf-8')) if stack is not None else 0
@@ -137,15 +133,7 @@ class DashboardDB:
         if output is not None:
             output_id = output['output_id']
         else:
-            # if we can’t find a row by hashes, maybe there’s an unhashed row from before schema v2?
-            output = self.con.execute('SELECT * FROM "output" WHERE "message_hash" IS NULL AND "stack_hash" IS NULL AND "message" IS ? AND "stack" IS ?', (message, stack)).fetchone()
-            if output is not None:
-                # update the unhashed row accordingly
-                self.con.execute('UPDATE "output" SET "message_hash" = ?, "stack_hash" = ? WHERE "output_id" = ?', (message_hash, stack_hash, output['output_id']))
-                output_id = output['output_id']
-            else:
-                # if we still can’t find a row, we need to insert one
-                output_id = self.con.execute('INSERT INTO "output" VALUES (NULL,?,?,?,?)', (message, stack, message_hash, stack_hash)).lastrowid
+            output_id = self.con.execute('INSERT INTO "output" VALUES (NULL,?,?,?,?)', (message, stack, message_hash, stack_hash)).lastrowid
 
         self.con.execute('INSERT INTO "attempt" VALUES (NULL,?,?,?,?,?,?)',
             (test_id, expected, actual, time, output_id, submission))
