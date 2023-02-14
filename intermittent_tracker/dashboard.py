@@ -13,7 +13,7 @@ def tests(request):
     else:
         query = 'SELECT * FROM "test" WHERE "last_unexpected" IS NOT NULL ORDER BY "last_unexpected" DESC'
     for test in db.con.execute(query).fetchall():
-        result.append(dict(test) | issues_mixin(test['path']))
+        result.append({**test, **issues_mixin(test['path'])})
     return json.dumps(result)
 
 def get_attempts(request):
@@ -33,14 +33,13 @@ def post_attempts(request):
     return query(request)
 
 def query(request):
-    issues_db = IssuesDB.readonly()
     result = {'known': [], 'unknown': []}
     attempts = request.json['attempts']
     for attempt in attempts:
         test = {'path': attempt['path'], 'subtest': attempt.get('subtest')}
-        issues = issues_db.query(attempt['path'])
+        issues = issues_mixin(attempt['path'])
         if issues:
-            result['known'].append(test | {'issues': issues})
+            result['known'].append({**test, **issues})
         else:
             result['unknown'].append(test)
     return json.dumps(result)
