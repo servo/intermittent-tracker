@@ -1,7 +1,9 @@
 from . import fs
+from .log import logger
 import json
 import sqlite3
 import time
+from sys import stderr
 from zlib import crc32
 from itertools import count
 
@@ -111,7 +113,7 @@ class DashboardDB:
         start = time.monotonic_ns()
         for attempt in self.con.execute(f'SELECT "path", "subtest", "attempt".*, "message", "stack", "branch", "build_url", "pull_url" FROM "attempt", "test", "output", "submission" WHERE "test" = "test_id" AND "output" = "output_id" AND "submission" = "submission_id" AND "actual" != "expected" {where} ORDER BY "attempt_id"', params).fetchall():
             result.append(dict(attempt))
-        print(f'debug: DashboardDB.select_attempts took {time.monotonic_ns() - start} ns')
+        logger().debug(f'DashboardDB.select_attempts took {time.monotonic_ns() - start} ns')
         return result
 
     def insert_attempt(self, *, submission, path, subtest=None, expected, actual, time,
@@ -148,7 +150,7 @@ class DashboardDB:
         for attempt in attempts:
             self.insert_attempt(submission=submission, **attempt)
         self.con.execute('RELEASE "insert_attempts"')
-        print(f'debug: DashboardDB.insert_attempts took {time.monotonic_ns() - start} ns')
+        logger().debug(f'DashboardDB.insert_attempts took {time.monotonic_ns() - start} ns')
 
 
 def now():
