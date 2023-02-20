@@ -3,7 +3,8 @@ import json
 
 def issues_mixin(path):
     issues = IssuesDB.readonly()
-    return {'issues': issues.query(path)}
+    result = issues.query(path)
+    return {'issues': result} if result else {}
 
 def tests(request):
     db = DashboardDB()
