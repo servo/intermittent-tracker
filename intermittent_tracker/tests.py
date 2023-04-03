@@ -137,4 +137,30 @@ assert debug(attempts.pop(0)) == {'path':'b','subtest':None,'attempt_id':6,'test
 assert debug(attempts.pop(0)) == {'path':'a','subtest':'e','attempt_id':7,'test':4,'expected':'OK','actual':'ERROR','time':0,'output':2,'submission':1,'message':'m','stack':'s','branch':'x','build_url':'y','pull_url':'z'}
 assert attempts == []
 
+# path filter is prefix search, component at a time ({path} exactly or {path}/*)
+dashboard.insert_attempts([
+    {'path':'/css/CSS2/foo.html','subtest':None,'expected':'PASS','actual':'FAIL','time':0},
+    {'path':'/css/module.with.dots/bar.html','subtest':None,'expected':'PASS','actual':'FAIL','time':0},
+], branch='x', build_url='y', pull_url='z', time_for_testing=13)
+
+# /css/CSS2 should match /css/CSS2/foo.html
+attempts = dashboard.select_attempts(path='/css/CSS2')
+assert debug(attempts.pop(0)) == {'path':'/css/CSS2/foo.html','subtest':None,'attempt_id':9,'test':6,'expected':'PASS','actual':'FAIL','time':0,'output':1,'submission':3,'message':None,'stack':None,'branch':'x','build_url':'y','pull_url':'z'}
+assert attempts == []
+
+# /css/CSS2/ should match /css/CSS2/foo.html
+attempts = dashboard.select_attempts(path='/css/CSS2/')
+assert debug(attempts.pop(0)) == {'path':'/css/CSS2/foo.html','subtest':None,'attempt_id':9,'test':6,'expected':'PASS','actual':'FAIL','time':0,'output':1,'submission':3,'message':None,'stack':None,'branch':'x','build_url':'y','pull_url':'z'}
+assert attempts == []
+
+# /css/CS should not match /css/CSS2/foo.html
+attempts = dashboard.select_attempts(path='/css/CS')
+assert attempts == []
+
+# /css/module.with.dots should match /css/module.with.dots/bar.html
+# (don’t assume that a component with dots is a file rather than a directory)
+attempts = dashboard.select_attempts(path='/css/module.with.dots')
+assert debug(attempts.pop(0)) == {'path':'/css/module.with.dots/bar.html','subtest':None,'attempt_id':10,'test':7,'expected':'PASS','actual':'FAIL','time':0,'output':1,'submission':3,'message':None,'stack':None,'branch':'x','build_url':'y','pull_url':'z'}
+assert attempts == []
+
 print('All tests passed.')
