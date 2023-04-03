@@ -60,7 +60,7 @@
         </tr>
         <tr v-for="attempt in attemptsLimited()" :key="attempt.attempt_id">
             <td><RelativeTime :t="attempt.time" :relative-to="lastNonEmptyUpdate" /></td>
-            <td v-if="columnVisible('path')"><a class="ugc" :href="filter('path', attempt)">{{ attempt.path }}</a></td>
+            <td v-if="columnVisible('path')"><PathBreadcrumbs :path="attempt.path" /></td>
             <td v-if="columnVisible('subtest')"><a class="ugc" :href="filter('subtest', attempt)">{{ attempt.subtest }}</a></td>
             <td v-if="columnVisible('expected')"><a :href="filter('expected', attempt)">{{ attempt.expected }}</a></td>
             <td v-if="columnVisible('actual')"><a :href="filter('actual', attempt)">{{ attempt.actual }}</a></td>
@@ -83,12 +83,17 @@
 </script>
 <script type="text/x-template" id="Detail">
     <a class="ugc" v-if="field.endsWith('_url')" :href="value" target="_blank">{{ value }}</a>
+    <PathBreadcrumbs v-else-if="field == 'path'" :path="value" />
     <pre class="ugc" v-else-if="value != null">{{ value }}</pre>
     <em class="ugc" v-else>(null)</em>
+</script>
+<script type="text/x-template" id="PathBreadcrumbs">
+    <span v-for="[i, component] in components().entries()">/<a class="ugc" :href="filter(i + 1)">{{ component }}</a></span>
 </script>
 <script>
     const ALL_KEYS = ["path", "subtest", "expected", "actual", "message", "stack", "branch", "build_url", "pull_url"];
     const FILTER_KEYS = ["path", "subtest", "expected", "actual", "branch", "build_url", "pull_url"];
+    const FILTER_KEYS_INEXACT = ["path"];
     const BULKY_KEYS = ["message", "stack"];
 
     const Recent = {
@@ -171,10 +176,12 @@
                     else
                         this.attempts = coalesceSubtestAttempts([...this.attemptsRaw]);
 
+                    // exclude keys currently being filtered, unless they are inexact filters
+                    const keys = ALL_KEYS.filter(k => !this.filterKeys.includes(k) || FILTER_KEYS_INEXACT.includes(k));
+
                     const uniques = {};
                     const allSame = {};
                     const allSameKeys = [];
-                    const keys = ALL_KEYS.filter(k => !this.filterKeys.includes(k));
                     for (const key of keys) {
                         uniques[key] = new Set;
                     }
@@ -208,8 +215,8 @@
                     && !this.more;
             },
             columnVisible(key) {
-                // hide any columns that we are filtering by
-                if (FILTER_KEYS.includes(key) && this.filterKeys.includes(key))
+                // hide any columns that we are filtering by, unless they are inexact filters
+                if (FILTER_KEYS.includes(key) && !FILTER_KEYS_INEXACT.includes(key) && this.filterKeys.includes(key))
                     return false;
 
                 // hide subtest column, unless path column is hidden
@@ -282,6 +289,24 @@
         },
     };
 
+    const PathBreadcrumbs = {
+        template: "#PathBreadcrumbs",
+        props: {
+            path: String,
+        },
+        methods: {
+            components() {
+                return this.path.replace(/^\/+|\/+$/g, '').split('/');
+            },
+            filter(numComponents) {
+                const params = new URLSearchParams(location.search);
+                const components = this.components().slice(0, numComponents);
+                params.set("path", components.map(x => `/${x}`).join(""));
+                return `?${params}`;
+            },
+        },
+    };
+
     async function fetchRecent(since = null, filters) {
         const params = new URLSearchParams();
         if (since != null)
@@ -329,5 +354,6 @@
     app.component("RelativeTime", RelativeTime);
     app.component("AbsoluteTime", AbsoluteTime);
     app.component("Detail", Detail);
+    app.component("PathBreadcrumbs", PathBreadcrumbs);
     app.mount("main");
 </script>

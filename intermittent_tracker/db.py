@@ -108,8 +108,18 @@ class DashboardDB:
             params.append(since)
         for key in FILTER_KEYS:
             if key in filters:
-                where += f' AND "{key}" = ?'
-                params.append(filters[key])
+                if key == 'path':
+                    # path filter is prefix search, component at a time ({path} exactly or {path}/*)
+                    where += f' AND ("{key}" = ? OR "{key}" LIKE ? ESCAPE \'\\\')'
+                    trimmed = filters[key].strip('/')
+                    escaped = trimmed.replace('\\', '\\\\')
+                    escaped = escaped.replace('%', '\\%')
+                    escaped = escaped.replace('_', '\\_')
+                    params.append(filters[key])
+                    params.append(f'/{escaped}/%')
+                else:
+                    where += f' AND "{key}" = ?'
+                    params.append(filters[key])
         start = time.monotonic_ns()
         for attempt in self.con.execute(f'SELECT "path", "subtest", "attempt".*, "message", "stack", "branch", "build_url", "pull_url" FROM "attempt", "test", "output", "submission" WHERE "test" = "test_id" AND "output" = "output_id" AND "submission" = "submission_id" AND "actual" != "expected" {where} ORDER BY "attempt_id"', params).fetchall():
             result.append(dict(attempt))
