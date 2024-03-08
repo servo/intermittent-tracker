@@ -1,8 +1,9 @@
 intermittent-tracker
 ====================
 
-To develop locally:
+**To develop locally:**
 
+Linux:
 ```sh
 $ python3 -m venv .venv
 $ . .venv/bin/activate
@@ -10,23 +11,50 @@ $ . .venv/bin/activate
 (.venv) $ cp config.json.example config.json
 (.venv) $ FLASK_DEBUG=1 python3 -m intermittent_tracker.flask_server
 ```
+Windows (make sure you are in the correct directory):
+```sh
+python -m venv .venv
+.venv\Scripts\activate
+(.venv) pip install -e . -r requirements.txt
+(.venv) copy config.json.example config.json
+(.venv) set FLASK_DEBUG=1 python -m intermittent_tracker.flask_server
+```
 
-To run tests:
 
+**To run tests:**
+
+Linux:
 ```sh
 (.venv) $ python3 -m intermittent_tracker.tests
 ```
+Windows:
+```sh
+(.venv) python -m intermittent_tracker.tests
+```
 
-To generate a `dashboard_secret` for config.json:
 
+
+**To generate a `dashboard_secret` for config.json:**
+
+Linux:
 ```sh
 $ python3 -c 'import secrets; print(secrets.token_urlsafe())'
 ```
+Windows:
+```sh
+python -c "import secrets; print(secrets.token_urlsafe())"
+```
 
-To update the pinned dependencies in the lockfile:
+**To update the pinned dependencies in the lockfile:**
 
+Linux:
 ```sh
 (.venv) $ pip freeze --exclude-editable > requirements.txt
+```
+Windows:
+```sh
+(.venv) pip freeze --exclude-editable > requirements.txt
+
 ```
 
 ## Compatibility
@@ -41,14 +69,21 @@ To update the pinned dependencies in the lockfile:
 
 This means your pip is too old. Upgrade your system pip…
 
+Linux:
 ```sh
 (.venv) $ deactivate
 $ rm -R .venv
 $ pip3 install -U pip
 ```
-
+Windows:
+```sh
+(.venv) deactivate
+rmdir /s .venv
+pip install -U pip
+```
 …or try virtualenv instead of venv.
 
+Linux:
 ```sh
 (.venv) $ pip --version
 pip 9.0.1 from /path/to/intermittent-tracker/.venv/lib/python3.7/site-packages (python 3.7)
@@ -60,8 +95,19 @@ $ . .venv/bin/activate
 (.venv) $ pip --version
 pip 23.0 from /path/to/intermittent-tracker/.venv/lib/python3.7/site-packages/pip (python 3.7)
 ```
+Windows:
+```sh
+(.venv) pip --version
+
+(.venv) deactivate
+rmdir /s .venv
+virtualenv -p python3.7 .venv
+.venv\Scripts\activate
+(.venv) pip --version
+```
 
 ## SQLite guidelines
+Below are some recommendations to ensure compatibility:
 
 * don’t use [UPSERT](https://sqlite.org/lang_upsert.html) aka INSERT ON CONFLICT (unavailable < SQLite 3.24.0)
 * don’t use [generated columns](https://sqlite.org/gencol.html) (unavailable < SQLite 3.31.0)
