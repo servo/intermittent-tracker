@@ -2,12 +2,9 @@ from .db import DashboardDB, IssuesDB
 import json
 
 def issues_mixin(path):
-    try:
-        issues = IssuesDB.readonly()
-        result = issues.query(path)
-        return {'issues': result} if result else {}
-    except FileNotFoundError:
-        return {}
+    issues = IssuesDB.readonly()
+    result = issues.query(path)
+    return {'issues': result} if result else {}
 
 def tests(request):
     db = DashboardDB()
@@ -48,10 +45,18 @@ def query(request):
             result['unknown'].append(test)
     return json.dumps(result)
 
-def flaky_tests():
+def flaky_tests(limit=100):
     db = DashboardDB()
     result = []
-    query = 'SELECT path, SUM(unexpected_count) AS total_unexpected_count FROM "test" GROUP BY path ORDER BY total_unexpected_count DESC LIMIT 100'
-    for test in db.con.execute(query).fetchall():
-        result.append({**test, **issues_mixin(test['path'])})
+    
+    # Adjust the SQL query to use the provided limit parameter
+    query = f'SELECT path, SUM(unexpected_count) AS total_unexpected_count FROM "test" GROUP BY path ORDER BY total_unexpected_count DESC LIMIT {limit}'
+    query_result = db.con.execute(query).fetchall()
+
+    for row in query_result:
+        test = {
+            'path': row['path'],
+            'total_unexpected_count': row['total_unexpected_count']
+        }
+        result.append(test)
     return result
