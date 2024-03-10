@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_httpauth import HTTPTokenAuth
 from . import fs, query, webhook, dashboard
 from .log import APP_NAME, WerkzeugFilter
@@ -53,6 +53,11 @@ def dashboard_query():
 @app.route('/')
 def index():
     return send_from_directory('static', 'index.html')
+
+@app.route('/flaky_tests')
+def flaky_tests():
+    tests_data = dashboard.flaky_tests()
+    return render_template('flaky_tests.html', tests=tests_data)
 
 def main():
     fs.mkdir_data()

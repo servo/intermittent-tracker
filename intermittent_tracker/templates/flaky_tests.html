@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<link rel="stylesheet" href="../static/style.css">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top 100 Flaky Tests</title>
+</head>
+
+<body>
+<table class="big" border="1">
+    <thead>
+        <tr>
+            <th>Test Path</th>
+            <th>Number of Unexpected Results</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for test in tests %}
+        <tr>
+            <td>{{ test.path }}</td>
+            <td>{{ test.total_unexpected_count }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</body>
+
+</html>
