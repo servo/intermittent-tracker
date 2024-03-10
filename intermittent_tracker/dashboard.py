@@ -49,7 +49,6 @@ def flaky_tests(limit=100):
     db = DashboardDB()
     result = []
     
-    # Adjust the SQL query to use the provided limit parameter
     query = f'SELECT path, SUM(unexpected_count) AS total_unexpected_count FROM "test" GROUP BY path ORDER BY total_unexpected_count DESC LIMIT {limit}'
     query_result = db.con.execute(query).fetchall()
 
