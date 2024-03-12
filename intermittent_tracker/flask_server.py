@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory, render_template, abort
+from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_httpauth import HTTPTokenAuth
 from . import fs, query, webhook, dashboard
 from .log import APP_NAME, WerkzeugFilter
