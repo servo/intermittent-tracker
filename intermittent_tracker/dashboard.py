@@ -45,7 +45,7 @@ def query(request):
             result['unknown'].append(test)
     return json.dumps(result)
 
-def flaky_tests(limit=100):
+def most_flaky(limit=100):
     db = DashboardDB()
     result = []
     
