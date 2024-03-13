@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_httpauth import HTTPTokenAuth
 from . import fs, query, webhook, dashboard
 from .log import APP_NAME, WerkzeugFilter
@@ -53,6 +53,12 @@ def dashboard_query():
 @app.route('/')
 def index():
     return send_from_directory('static', 'index.html')
+
+@app.route('/most-flaky')
+def most_flaky():
+    limit = request.args.get('limit', default=100, type=int)
+    tests_data = dashboard.most_flaky(limit=limit)
+    return render_template('most_flaky.html', tests=tests_data)
 
 def main():
     fs.mkdir_data()

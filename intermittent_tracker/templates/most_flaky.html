@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flakiest Tests</title>
+    <link rel="stylesheet" href="../static/style.css">
+</head>
+
+<body>
+    <form action="/most-flaky" method="get">
+        <label for="limit">Limit:</label>
+        <input type="number" id="limit" name="limit" min="0">
+        <button type="submit">Apply</button>
+    </form>
+
+    <table class="big" border="1">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Test Path</th>
+                <th>Number of Unexpected Results</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for test in tests %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ test.path }}</td>
+                <td>{{ test.total_unexpected_count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+
+</html>
