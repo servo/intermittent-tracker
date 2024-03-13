@@ -21,6 +21,7 @@
                 <th>#</th>
                 <th>Test Path</th>
                 <th>Number of Unexpected Results</th>
+                <th>GitHub Issue</th>
             </tr>
         </thead>
         <tbody>
@@ -29,6 +30,13 @@
                 <td>{{ loop.index }}</td>
                 <td>{{ test.path }}</td>
                 <td>{{ test.total_unexpected_count }}</td>
+                <td>
+                    {% if test.issues %}
+                        <a href="https://github.com/servo/servo/issues/{{ test.issues.issues[0].number }}" rel=”noopener" target="_blank">{{ test.issues.issues[0].title }}</a>
+                    {% else %}
+                        No issues found
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>

@@ -48,14 +48,14 @@ def query(request):
 def most_flaky(limit=100):
     db = DashboardDB()
     result = []
-    
     query = f'SELECT path, SUM(unexpected_count) AS total_unexpected_count FROM "test" GROUP BY path ORDER BY total_unexpected_count DESC LIMIT {limit}'
     query_result = db.con.execute(query).fetchall()
-
     for row in query_result:
         test = {
             'path': row['path'],
             'total_unexpected_count': row['total_unexpected_count']
         }
+        issues = issues_mixin(test['path'])
+        test['issues'] = issues
         result.append(test)
     return result
