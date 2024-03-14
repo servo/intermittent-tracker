@@ -22,6 +22,9 @@ pre, code {
 table.big tr:nth-child(2n) {
     background: #e0e0e0;
 }
+table.big td:last-child {
+    width: auto;
+}
 td, th {
     vertical-align: top;
 }
