@@ -9,30 +9,43 @@
 </head>
 
 <body>
-    <form action="/most-flaky" method="get">
-        <label for="limit">Limit:</label>
-        <input type="number" id="limit" name="limit" min="0">
-        <button type="submit">Apply</button>
-    </form>
+    <div class="main-content">
+        <h2>Flakiest Tests</h2>
+        
+        <form action="/most-flaky" method="get">
+            <label for="limit">Limit:</label>
+            <input type="number" id="limit" name="limit" min="0">
+            <button type="submit">Apply</button>
+        </form>
 
-    <table class="big" border="1">
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Test Path</th>
-                <th>Number of Unexpected Results</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for test in tests %}
-            <tr>
-                <td>{{ loop.index }}</td>
-                <td>{{ test.path }}</td>
-                <td>{{ test.total_unexpected_count }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+        <table class="big" border="1">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Test Path</th>
+                    <th>Number of Unexpected Results</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for test in tests %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>
+                        {{ test.path }}
+                        {%- if test.issues -%}
+                        ({%- for issue in test.issues.issues -%}
+                        <a href="https://github.com/servo/servo/issues/{{ issue.number }}" rel="noopener" target="_blank">{{ '#' ~ issue.number }}</a>
+                        {%- if not loop.last -%},
+                        {% endif -%}
+                        {%- endfor -%})
+                        {%- endif -%}
+                    </td>
+                    <td>{{ test.total_unexpected_count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </body>
 
 </html>
