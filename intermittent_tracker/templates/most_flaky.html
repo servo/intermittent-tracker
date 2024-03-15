@@ -32,13 +32,13 @@
                     <td>{{ loop.index }}</td>
                     <td>
                         {{ test.path }}
-                        {% if test.issues %}
-                        {% for issue in test.issues.issues %}
-                        <a href="https://github.com/servo/servo/issues/{{ issue.number }}" rel="noopener" target="_blank">
-                            (#{{ issue.number }})
-                        </a>
-                        {% endfor %}
-                        {% endif %}
+                        {%- if test.issues -%}
+                        ({%- for issue in test.issues.issues -%}
+                        <a href="https://github.com/servo/servo/issues/{{ issue.number }}" rel="noopener" target="_blank">{{ '#' ~ issue.number }}</a>
+                        {%- if not loop.last -%},
+                        {% endif -%}
+                        {%- endfor -%})
+                        {%- endif -%}
                     </td>
                     <td>{{ test.total_unexpected_count }}</td>
                 </tr>
