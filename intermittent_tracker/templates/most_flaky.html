@@ -5,14 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flakiest Tests</title>
-    <link rel="stylesheet" href="../static/style.css">
+    <link rel="stylesheet" href="static/style.css">
 </head>
 
 <body>
     <div class="main-content">
         <h2>Flakiest Tests</h2>
-        
-        <form action="/most-flaky" method="get">
+
+        <form action="{{ url_for('most_flaky') }}" method="get">
             <label for="limit">Limit:</label>
             <input type="number" id="limit" name="limit" min="0">
             <button type="submit">Apply</button>
@@ -32,7 +32,7 @@
                     <td>{{ loop.index }}</td>
                     <td>
                         {{ test.path }}
-                        {%- if test.issues -%}
+                        {% if test.issues -%}
                         ({%- for issue in test.issues.issues -%}
                         <a href="https://github.com/servo/servo/issues/{{ issue.number }}" rel="noopener" target="_blank">{{ '#' ~ issue.number }}</a>
                         {%- if not loop.last -%},
