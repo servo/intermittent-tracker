@@ -23,6 +23,7 @@ setup(
         'intermittent_tracker': [
             'schema/*',
             'static/*',
+            'templates/*',
             'tests.json',
         ],
     },
